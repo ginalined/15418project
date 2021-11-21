@@ -53,6 +53,10 @@
 #include <math.h>
 #include <stdio.h>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <driver_functions.h>
+
 #ifdef gnu
 #include "zzzz.h"
 
@@ -130,8 +134,7 @@ Vprint(double V[3])
   printf("%g %g %g\n", V[0], V[1], V[2]);
 }
 
-inline
-void
+__device__ __inline__ void
 Midentity(double M[3][3])
 {
   M[0][0] = M[1][1] = M[2][2] = 1.0;
@@ -139,8 +142,7 @@ Midentity(double M[3][3])
   M[0][2] = M[1][0] = M[2][1] = 0.0;
 }
 
-inline
-void
+__device__ __inline__ void
 McM(double Mr[3][3], double M[3][3])
 {
   Mr[0][0] = M[0][0];  Mr[0][1] = M[0][1];  Mr[0][2] = M[0][2];
@@ -148,15 +150,13 @@ McM(double Mr[3][3], double M[3][3])
   Mr[2][0] = M[2][0];  Mr[2][1] = M[2][1];  Mr[2][2] = M[2][2];
 }
 
-inline
-void
+__device__ __inline__ void
 VcV(double Vr[3], double V[3])
 {
   Vr[0] = V[0];  Vr[1] = V[1];  Vr[2] = V[2];
 }
 
-inline
-void
+__device__ __inline__ void
 McolcV(double Vr[3], double M[3][3], int c)
 {
   Vr[0] = M[0][c];
@@ -164,8 +164,7 @@ McolcV(double Vr[3], double M[3][3], int c)
   Vr[2] = M[2][c];
 }
 
-inline
-void
+__device__ __inline__ void
 McolcMcol(double Mr[3][3], int cr, double M[3][3], int c)
 {
   Mr[0][cr] = M[0][c];
@@ -173,8 +172,7 @@ McolcMcol(double Mr[3][3], int cr, double M[3][3], int c)
   Mr[2][cr] = M[2][c];
 }
 
-inline
-void
+__device__ __inline__ void
 MxMpV(double Mr[3][3], double M1[3][3], double M2[3][3], double T[3])
 {
   Mr[0][0] = (M1[0][0] * M2[0][0] +
@@ -215,8 +213,7 @@ MxMpV(double Mr[3][3], double M1[3][3], double M2[3][3], double T[3])
 	      T[2]);
 }
 
-
-void 
+__device__ __inline__ void
 MxM(double Mr[3][3], double M1[3][3], double M2[3][3])
 {
   Mr[0][0] = (M1[0][0] * M2[0][0] +
@@ -249,8 +246,7 @@ MxM(double Mr[3][3], double M1[3][3], double M2[3][3])
 }
 
 
-inline
-void
+__device__ __inline__ void
 MxMT(double Mr[3][3], double M1[3][3], double M2[3][3])
 {
   Mr[0][0] = (M1[0][0] * M2[0][0] +
@@ -282,8 +278,7 @@ MxMT(double Mr[3][3], double M1[3][3], double M2[3][3])
 	      M1[2][2] * M2[2][2]);
 }
 
-inline
-void
+__device__ __inline__ void
 MTxM(double Mr[3][3], double M1[3][3], double M2[3][3])
 {
   Mr[0][0] = (M1[0][0] * M2[0][0] +
@@ -315,8 +310,7 @@ MTxM(double Mr[3][3], double M1[3][3], double M2[3][3])
 	      M1[2][2] * M2[2][2]);
 }
 
-inline
-void
+__device__ __inline__ void
 MxV(double Vr[3], double M1[3][3], double V1[3])
 {
   Vr[0] = (M1[0][0] * V1[0] +
@@ -331,8 +325,7 @@ MxV(double Vr[3], double M1[3][3], double V1[3])
 }
 
 
-inline
-void
+__device__ __inline__ void
 MxVpV(double Vr[3], double M1[3][3], double V1[3], double V2[3])
 {
   Vr[0] = (M1[0][0] * V1[0] +
@@ -349,8 +342,7 @@ MxVpV(double Vr[3], double M1[3][3], double V1[3], double V2[3])
 	   V2[2]);
 }
 
-inline
-void
+__device__ __inline__ void
 sMxVpV(double Vr[3], double s1, double M1[3][3], double V1[3], double V2[3])
 {
   Vr[0] = s1 * (M1[0][0] * V1[0] +
@@ -367,8 +359,7 @@ sMxVpV(double Vr[3], double s1, double M1[3][3], double V1[3], double V2[3])
 		V2[2];
 }
 
-inline
-void
+__device__ __inline__ void
 MTxV(double Vr[3], double M1[3][3], double V1[3])
 {
   Vr[0] = (M1[0][0] * V1[0] +
@@ -382,8 +373,7 @@ MTxV(double Vr[3], double M1[3][3], double V1[3])
 	   M1[2][2] * V1[2]); 
 }
 
-inline
-void
+__device__ __inline__ void
 sMTxV(double Vr[3], double s1, double M1[3][3], double V1[3])
 {
   Vr[0] = s1*(M1[0][0] * V1[0] +
@@ -398,8 +388,7 @@ sMTxV(double Vr[3], double s1, double M1[3][3], double V1[3])
 }
 
 
-inline
-void
+__device__ __inline__ void 
 VmV(double Vr[3], const double V1[3], const double V2[3])
 {
   Vr[0] = V1[0] - V2[0];
@@ -407,8 +396,7 @@ VmV(double Vr[3], const double V1[3], const double V2[3])
   Vr[2] = V1[2] - V2[2];
 }
 
-inline
-void
+__device__ __inline__  void
 VpV(double Vr[3], double V1[3], double V2[3])
 {
   Vr[0] = V1[0] + V2[0];
@@ -416,8 +404,7 @@ VpV(double Vr[3], double V1[3], double V2[3])
   Vr[2] = V1[2] + V2[2];
 }
 
-inline
-void
+__device__ __inline__  void
 VpVxS(double Vr[3], double V1[3], double V2[3], double s)
 {
   Vr[0] = V1[0] + V2[0] * s;
@@ -425,8 +412,7 @@ VpVxS(double Vr[3], double V1[3], double V2[3], double s)
   Vr[2] = V1[2] + V2[2] * s;
 }
 
-inline 
-void
+__device__ __inline__ void
 MskewV(double M[3][3], const double v[3])
 {
   M[0][0] = M[1][1] = M[2][2] = 0.0;
@@ -439,8 +425,7 @@ MskewV(double M[3][3], const double v[3])
 }
 
 
-inline
-void
+__device__ __inline__ void
 VcrossV(double Vr[3], const double V1[3], const double V2[3])
 {
   Vr[0] = V1[1]*V2[2] - V1[2]*V2[1];
@@ -449,14 +434,13 @@ VcrossV(double Vr[3], const double V1[3], const double V2[3])
 }
 
 
-inline
-double
+__device__ __inline__ double
 Vlength(double V[3])
 {
   return sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
 }
 
-void
+__device__ void
 Vnormalize(double V[3])
 {
   double d = 1.0 / sqrt(V[0]*V[0] + V[1]*V[1] + V[2]*V[2]);
@@ -466,14 +450,14 @@ Vnormalize(double V[3])
 }
 
 
-double
+__device__ double
 VdotV(double V1[3], double V2[3])
 {
   return (V1[0]*V2[0] + V1[1]*V2[1] + V1[2]*V2[2]);
 }
 
 
-void
+__device__ void
 VxS(double Vr[3], double V[3], double s)
 {
   Vr[0] = V[0] * s;
@@ -482,7 +466,7 @@ VxS(double Vr[3], double V[3], double s)
 }
 
 
-void
+__device__ void
 Mqinverse(double Mr[3][3], double m[3][3])
 {
   int i,j;
@@ -503,7 +487,7 @@ Mqinverse(double Mr[3][3], double m[3][3])
 
 #define ROT(a,i,j,k,l) g=a[i][j]; h=a[k][l]; a[i][j]=g-s*(h+g*tau); a[k][l]=h+s*(g-h*tau);
 
-int
+__device__ int
 Meigen(double vout[3][3], double dout[3], double a[3][3])
 {
   int i;
@@ -610,7 +594,7 @@ Meigen(double vout[3][3], double dout[3], double a[3][3])
   return i;
 }
 
-int
+__device__ int
 eigen_and_sort1(double evecs[3][3], double cov[3][3])
 {
   double t;
@@ -675,7 +659,7 @@ eigen_and_sort1(double evecs[3][3], double cov[3][3])
 }
 
 
-void
+__device__ void
 minmax(double &mn, double &mx, double v)
 {
   if (v < mn) mn = v;

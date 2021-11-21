@@ -1,7 +1,7 @@
 
 EXECUTABLE := cudaCollide
 
-CU_FILES   := CudaCollide.cu
+CU_FILES   := VInternal.cu
 
 CU_DEPS    :=
 

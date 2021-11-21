@@ -66,7 +66,7 @@ Description: This file implements the member functions of the class NBody.
 #include <math.h>
 #include "objects.h"
 #include "NBody.H"
-
+#include <math.h>  
 const int REVERSE  = 1;//whether the direction of movement of the interval
 const int FORWARD  = 2;//along the list is forward (FORWARD), reverse (REVERSE)
 const int NOCHANGE = 3;//or there is no movement at all (NOCHANGE).
@@ -160,62 +160,19 @@ void NBody::AddObject(int id, Object *b) //add a new object
 
   for (i=0; i<(b->num_tris); i++)
     {
-      double cur_rad1_sq = (
-			    (curr->center[0] - b->tris[i].p1[0])
-			    *
-			    (curr->center[0] - b->tris[i].p1[0])
-			    
-			    +
-			    
-			    (curr->center[1] - b->tris[i].p1[1])
-			    *
-			    (curr->center[1] - b->tris[i].p1[1])
-			    
-			    +
-			    
-			    (curr->center[2] - b->tris[i].p1[2])
-			    *
-			    (curr->center[2] - b->tris[i].p1[2])
-			    );
-      
-
-      double cur_rad2_sq = (
-			    (curr->center[0] - b->tris[i].p2[0])
-			    *
-			    (curr->center[0] - b->tris[i].p2[0])
-			    
-			    +
-			    
-			    (curr->center[1] - b->tris[i].p2[1])
-			    *
-			    (curr->center[1] - b->tris[i].p2[1])
-			    
-			    +
-			    
-			    (curr->center[2] - b->tris[i].p2[2])
-			    *
-			    (curr->center[2] - b->tris[i].p2[2])
-			    );
-
-      double cur_rad3_sq = (
-			    (curr->center[0] - b->tris[i].p3[0])
-			    *
-			    (curr->center[0] - b->tris[i].p3[0])
-			    
-			    +
-			    
-			    (curr->center[1] - b->tris[i].p3[1])
-			    *
-			    (curr->center[1] - b->tris[i].p3[1])
-			    
-			    +
-			    
-			    (curr->center[2] - b->tris[i].p3[2])
-			    *
-			    (curr->center[2] - b->tris[i].p3[2])
-			    );
-      
-      
+      double cur_rad1_sq = 0;
+      double cur_rad2_sq = 0;
+      double cur_rad3_sq = 0;
+      for (int w=0; w<3; w++)
+      {
+        double my_num1 = curr->center[w] - b->tris[i].p1[w];
+        double my_num2 = curr->center[w] - b->tris[i].p2[w];
+        double my_num3 = curr->center[w] - b->tris[i].p3[w];
+        cur_rad1_sq += pow(my_num1, 2);
+        cur_rad2_sq += pow(my_num2, 2);
+        cur_rad3_sq += pow(my_num3, 2);
+      }
+               
       
       double max_rad_sq = GT(cur_rad1_sq, GT(cur_rad2_sq,cur_rad3_sq));
       
@@ -224,33 +181,22 @@ void NBody::AddObject(int id, Object *b) //add a new object
     }
 
   curr->radius = sqrt(curr->radius);
-  
   curr->radius *= 1.0001;  //add a 0.01% buffer.
-
+  curr->lo = new EndPoint;
+  curr->hi = new EndPoint;
+  curr->lo->minmax = MIN;
+  curr->hi->minmax = MAX;
+  curr->lo->aabb = curr;
+  curr->hi->aabb = curr;
   double min[3], max[3];
   
-  min[0] = curr->center[0] - curr->radius; //min holds the min endpoints 
-  max[0] = curr->center[0] + curr->radius; //of the three intervals and
-  min[1] = curr->center[1] - curr->radius; //max holds the max endpoints.
-  max[1] = curr->center[1] + curr->radius;
-  min[2] = curr->center[2] - curr->radius;
-  max[2] = curr->center[2] + curr->radius;
-  
-  curr->lo = new EndPoint;    //set up the two EndPoints data structures 
-                              //for the AABB.
-  curr->lo->minmax = MIN;
-  curr->lo->val[0] = min[0];
-  curr->lo->val[1] = min[1];
-  curr->lo->val[2] = min[2];
-  curr->lo->aabb = curr;
+  for (int w=0; w<3; w++){
+  min[w] = curr->center[w] - curr->radius; 
+  max[w] = curr->center[w] + curr->radius;
+  curr->lo->val[w] = min[w];
+  curr->hi->val[w] = max[w];
+  }
 
-  curr->hi = new EndPoint;
-  
-  curr->hi->minmax = MAX;
-  curr->hi->val[0] = max[0];
-  curr->hi->val[1] = max[1];
-  curr->hi->val[2] = max[2];
-  curr->hi->aabb = curr;
 
   for (i=0; i<size; i++)      //Now, check the overlap of this AABB with 
     {                         //with all other AABBs and add the pair to

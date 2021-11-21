@@ -9,6 +9,7 @@
 
 #include "objects.h"
 #include "moments.H"
+
 extern int Object_initialized;
 void Object_initialize();
 

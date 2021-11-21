@@ -59,6 +59,10 @@
 #include "VInternal.H"
 //#include "VCollide.H"
 using namespace std;
+
+float toBW(int bytes, float sec) {
+  return static_cast<float>(bytes) / (1024. * 1024. * 1024.) / sec;
+}
 int main(int argc, char *argv[])
 {
   
