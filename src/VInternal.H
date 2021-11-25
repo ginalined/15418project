@@ -123,7 +123,9 @@ Description: Each instance of this class maintains information about a
              class. It uses the NBody class as its back-end.
 
 \************************************************************************/
-
+const int REVERSE  = 1;//whether the direction of movement of the interval
+const int FORWARD  = 2;//along the list is forward (FORWARD), reverse (REVERSE)
+const int NOCHANGE = 3;//or there is no movement at all (NOCHANGE).
 class VCInternal
 {
   int      state;       //the state in which VCollide is.
@@ -159,6 +161,14 @@ public:
 
   int Report(int size, VCReportType *vcrep);
                       //report the results of collision detection.
+
+    
+int 
+tri_contact (double *P1, double *P2, double *P3,
+	     double *Q1, double *Q2, double *Q3);
+
+int
+obb_disjoint(double B[3][3], double T[3], double a[3], double b[3]);
 
 };
 

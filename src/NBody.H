@@ -65,8 +65,7 @@ Description: This file declares the class NBody.
 #ifndef NBODY_H
 #define NBODY_H
 
-#include "AABB.H"
-#include "EndPoint.H"
+
 #include "PairData.H"
 #include "objects.h"
 /************************************************************************\
@@ -83,12 +82,41 @@ Description: The class NBody forms the core of VCollide. It
              pairs.
 
 \************************************************************************/
+struct AABB;  //defined in file AABB.H
+struct EndPoint;
+const int MIN=1;
+const int MAX=2;
 
+
+struct AABB
+{
+
+  int          id;             
+  double       center[3];      // center of the AABB
+  double       radius;         // radius of the AABB
+  EndPoint     *lo;            // the (min_x, min_y, min_z) and  
+  EndPoint     *hi;            // (max_x, max_y, max_z) corners of
+   
+};   
+
+struct EndPoint
+{
+
+  char        minmax;     //whether the instance represents a
+                          //"min" or a "max" end-point.
+  
+  double      val[3];     //the coordinates of the EndPoint.
+  EndPoint    *prev[3];   //for maintaining the three linked
+  EndPoint    *next[3];   //lists.
+
+  AABB        *aabb;      //back pointer to the parent AABB.
+
+};
 
 
 class NBody
 {
-private:
+public:  
 
   EndPoint *elist[3];  //pointers to the three linked lists, one for
                        //each axis.
@@ -101,19 +129,7 @@ private:
   
   int overlaps(AABB *obj1, AABB *obj2);   //to check if two AABBs overlap.
   
-  void add_overlap_pair(int id1, int id2) //add a pair to the set of
-    {                                     //overlapping pairs.
-      if (id1 != id2)
-	overlapping_pairs.AddPair(id1, id2);
-    }
-  
-  void del_overlap_pair(int id1, int id2) //delete a pair from the set.
-    {
-      if (id1 != id2)
-	overlapping_pairs.DelPair(id1, id2);
-    }
-  
-public:  
+
   PairData overlapping_pairs; //at any instance during the execution of the
                               //program, overlapping_pairs contains the set
                               //of pairs of ids whose AABBs overlap.
@@ -123,10 +139,9 @@ public:
   
   void AddObject(int id, Object *b); //add an object to the NBody data
                                           //structure.
-  void UpdateTrans(int id, double trans[][4]); //update the current position
-                                               //and orientation of the object.
   void DeleteObject(int id);  //delete the object from the data structure.
   
 };
+//void updateTrans(int id, double trans[][4], NBody * obj);
 
 #endif  /* NBODY_H */

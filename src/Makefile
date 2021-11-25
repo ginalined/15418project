@@ -1,7 +1,7 @@
 
 EXECUTABLE := cudaCollide
 
-CU_FILES   := VInternal.cu
+CU_FILES   := VInternal.cu 
 
 CU_DEPS    :=
 
@@ -20,7 +20,7 @@ all: $(EXECUTABLE)
 
 default: $(EXECUTABLE)
 
-OBJS = NBody.o objects.o PairData.o VInternal.o  main.o CudaCollide.o 
+OBJS = NBody.o objects.o PairData.o VInternal.o main.o 
 
 TARGET = libVCollide.a
 
