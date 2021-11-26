@@ -41,7 +41,7 @@
   
      
   The authors may be contacted via:
-
+ 
   US Mail:  A. Pattekar/J. Cohen/T. Hudson/S. Gottschalk/M. Lin/D. Manocha
             Department of Computer Science
             Sitterson Hall, CB #3175
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
   //     exit(1);
   //   }
   cout << "hello, mp"<< endl;
-  VCInternal vc;
+  VCInternal vc(2);
   int id[2];
 
   int i;
@@ -178,10 +178,13 @@ int main(int argc, char *argv[])
       VCReportType *vcrep = new VCReportType[VCReportSize];
       
       int no_of_colliding_pairs = vc.Report(VCReportSize, vcrep);
-      
+      cout << no_of_colliding_pairs <<"pairs waited to be reported";
       for (int j=0; j<no_of_colliding_pairs; j++)
+      
 	cout<<"Detected collision between objects "<<vcrep[j].id1<<" and "<<vcrep[j].id2<<"\n";
       
     }
     return 0;
 }
+
+

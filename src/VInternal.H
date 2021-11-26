@@ -139,7 +139,7 @@ class VCInternal
   VCObject **vc_objects;//array of pointers to VCObjects.
   
 public:
-  VCInternal();
+  VCInternal(int size);
   ~VCInternal();
 
   int NewObject(int *id); //create a new object in the database.

@@ -104,44 +104,32 @@ struct EndPoint
 
   char        minmax;     //whether the instance represents a
                           //"min" or a "max" end-point.
+  AABB        *aabb;      //back pointer to the parent AABB.
   
   double      val[3];     //the coordinates of the EndPoint.
   EndPoint    *prev[3];   //for maintaining the three linked
   EndPoint    *next[3];   //lists.
 
-  AABB        *aabb;      //back pointer to the parent AABB.
+  
 
 };
 
-
-class NBody
+struct NBody
 {
-public:  
-
-  EndPoint *elist[3];  //pointers to the three linked lists, one for
+  EndPoint *head[3];  //pointers to the three linked lists, one for
                        //each axis.
   int      size;       //the size of dynamic array - AABB_arr
   AABB     **AABB_arr; //AABB_arr points to a dynamic array of pointers.
                        //Element at index "i" in this array points to an
                        //AABB corresponding to the object with id = i. If
                        //this object doesn't exist, then the pointer is NULL.
-  
-  
-  int overlaps(AABB *obj1, AABB *obj2);   //to check if two AABBs overlap.
-  
-
   PairData overlapping_pairs; //at any instance during the execution of the
                               //program, overlapping_pairs contains the set
                               //of pairs of ids whose AABBs overlap.
 
-  NBody();                    //constructor.
-  ~NBody();                   //destructor.
-  
-  void AddObject(int id, Object *b); //add an object to the NBody data
-                                          //structure.
-  void DeleteObject(int id);  //delete the object from the data structure.
-  
 };
+
+
 //void updateTrans(int id, double trans[][4], NBody * obj);
 
 #endif  /* NBODY_H */

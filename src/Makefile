@@ -5,7 +5,7 @@ CU_FILES   := VInternal.cu
 
 CU_DEPS    :=
 
-CC_FILES   := main.cpp
+CC_FILES   := nobody.cpp
 
 
 ARCH=$(shell uname | sed -e 's/-.*//g')
@@ -20,7 +20,7 @@ all: $(EXECUTABLE)
 
 default: $(EXECUTABLE)
 
-OBJS = NBody.o objects.o PairData.o VInternal.o main.o 
+OBJS = NBody.o objects.o PairData.o VInternal.o nbody.o 
 
 TARGET = libVCollide.a
 
