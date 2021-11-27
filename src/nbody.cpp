@@ -62,7 +62,7 @@
 using namespace std;
 
 const int NO_OF_OBJECTS=20;      //number of instances
-const int SIMULATION_STEPS=100;  //number of steps in the simulation.
+const int SIMULATION_STEPS=99;  //number of steps in the simulation.
 
 int main(int argc, char *argv[])
 {
@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
 	  
 	  vc.AddTri(v1, v2, v3);
 	}
+  std::cout<<"closing files\n";
       
       fclose(fp);
       
@@ -163,6 +164,6 @@ int main(int argc, char *argv[])
 
     }
 
- 
+   
     return 0;
 }

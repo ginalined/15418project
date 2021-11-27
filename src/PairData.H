@@ -68,7 +68,9 @@ Description: This file declares two classes - Elem and
 
 #ifndef PAIRDATA_H
 #define PAIRDATA_H
-
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <driver_functions.h>
 class Elem
 {
 public:
@@ -98,7 +100,7 @@ class PairData
 {
 
 private:
-  inline void OrderIds(int& id1, int& id2);
+  __host__ __device__  void OrderIds(int& id1, int& id2);
   
 public:
   int    size;   //the size of array pointed to by "arr"
@@ -112,24 +114,16 @@ public:
   PairData();
   ~PairData();
   
-  void   AddPair(int id1, int id2);     //add a pair of ids to the set.
-  void   DelPair(int id1, int id2);     //delete a pair from the set.
-  void   DelPairsInvolvingId(int id);   //delete all pairs containing id.
-  void   Clear(void);                   //empty the set.
-  int    ExistsPair(int id1, int id2);  //check if a pair of ids exists
+  __host__ __device__ void   AddPair(int id1, int id2);     //add a pair of ids to the set.
+  __host__ __device__ void   DelPair(int id1, int id2);     //delete a pair from the set.
+  __host__ __device__ void   DelPairsInvolvingId(int id);   //delete all pairs containing id.
+  __host__ __device__ void   Clear(void);                   //empty the set.
+  __host__ __device__ int    ExistsPair(int id1, int id2);  //check if a pair of ids exists
                                         //in the given set.
   
 };
 
-inline void PairData::OrderIds(int &id1, int& id2) //ensures that
-{                                                  //id1 = min(id1,id2) and
-  if (id1 > id2)                                   //id2 = max(id1, id2)
-    {
-      int temp = id1;
-      id1 = id2;
-      id2 = temp;
-    }
-}
+
 
 
 #endif /* PAIRDATA_H */

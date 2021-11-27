@@ -97,7 +97,7 @@ PairData::~PairData()
 }
 
 
-void PairData::AddPair(int id1, int id2) //add a pair to the set.
+__host__ __device__ void PairData::AddPair(int id1, int id2) //add a pair to the set.
 {
   
   OrderIds(id1, id2);  //order the ids
@@ -156,7 +156,7 @@ void PairData::AddPair(int id1, int id2) //add a pair to the set.
   
 }
   
-void PairData::DelPair(int id1, int id2) //delete a pair from the set.
+__host__ __device__ void PairData::DelPair(int id1, int id2) //delete a pair from the set.
 {
   OrderIds(id1, id2); //order the ids.
   
@@ -196,7 +196,7 @@ void PairData::DelPair(int id1, int id2) //delete a pair from the set.
     }
 }
 
-void PairData:: DelPairsInvolvingId(int id)  //delete all pairs containing id.
+__host__ __device__ void PairData:: DelPairsInvolvingId(int id)  //delete all pairs containing id.
 {
   if (id < size)
     {
@@ -222,7 +222,7 @@ void PairData:: DelPairsInvolvingId(int id)  //delete all pairs containing id.
 }
 
 
-void PairData::Clear(void)     //delete all pairs from the set.
+__host__ __device__ void PairData::Clear(void)     //delete all pairs from the set.
 {
   int i;
   for (i=0; i<size; i++)
@@ -236,7 +236,7 @@ void PairData::Clear(void)     //delete all pairs from the set.
     }
 };
 
-int PairData::ExistsPair(int id1, int id2)  //check if a pair exists in the
+__host__ __device__ int PairData::ExistsPair(int id1, int id2)  //check if a pair exists in the
 {                                           //set.
   OrderIds(id1, id2);      //order the ids.
   
@@ -255,3 +255,14 @@ int PairData::ExistsPair(int id1, int id2)  //check if a pair exists in the
     }
   return 0;
 }
+
+__host__ __device__  void PairData::OrderIds(int &id1, int& id2) //ensures that
+{                                                  //id1 = min(id1,id2) and
+  if (id1 > id2)                                   //id2 = max(id1, id2)
+    {
+      int temp = id1;
+      id1 = id2;
+      id2 = temp;
+    }
+}
+

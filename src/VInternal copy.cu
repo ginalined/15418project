@@ -71,208 +71,30 @@ Description: This file implements the member functions of the class vinternal.c
 #include <driver_functions.h>
 #include "CycleTimer.h"
 #include "objects.h"
-
+#include "NBody.H"
 #include <math.h>  
 
 
-
-
-void init_PairData(PairData *pd)
-{
-  pd->size = 100;
-  pd->arr = new Elem*[100];
-  int i;
-  for (i=0;i<100;i++)
-    pd->arr[i] = NULL;
-}
-
-__host__ __device__  void OrderIds(int &id1, int& id2, PairData *pd) //ensures that
-{                                                  //id1 = min(id1,id2) and
-  if (id1 > id2)                                   //id2 = max(id1, id2)
-    {
-      int temp = id1;
-      id1 = id2;
-      id2 = temp;
-    }
-}
-
-__host__ __device__ void AddPair(int id1, int id2, PairData *pd) //add a pair to the set.
-{
-  
-  OrderIds(id1, id2, pd);  //order the ids
-  
-  if (id1 >= pd->size)     //increase the size of "arr", if necessary.
-    {
-      int newsize = (id1 >= 2*pd->size) ? (id1+1) : 2*pd->size;
-      
-      Elem **temp = new Elem*[newsize];
-      int i;
-      for (i=0; i<pd->size; i++)
-	temp[i] = pd->arr[i];
-      for (i=pd->size; i<newsize; i++)
-	temp[i] = NULL;
-      delete [] pd->arr;
-      pd->arr = temp;
-      pd->size = newsize;
-    }
-  
-  Elem *current = pd->arr[id1]; //select the right list from "arr".
-  
-  if (current == NULL)      //if the list is empty, insert the
-    {                       //element in the front.
-      current = new Elem;
-      current->id = id2;
-      current->next = NULL;
-      pd->arr[id1] = current;
-    }
-  else if (current->id > id2) //if the list is not empty but all
-    {                         //elements are greater than id2, then
-      current = new Elem;     //insert id2 in the front.
-      current->id = id2;
-      current->next = pd->arr[id1];
-      pd->arr[id1] = current;
-    }
-  else
-    {
-      while (current->next != NULL)    //otherwise, find the correct location
-	{                              //in the sorted list (ascending order) 
-	  if (current->next->id > id2) //and insert id2 there.
-	    break;
-	  current = current->next;
-	}
-      if (current->id == id2)
-	{
-	  return;
-	}
-      else
-	{
-	  Elem *temp = new Elem;
-	  temp->id = id2;
-	  temp->next = current->next;
-	  current->next = temp;
-	}
-    }
-  
-}
-  
-__host__ __device__ void DelPair(int id1, int id2,  PairData *pd) //delete a pair from the set.
-{
-  OrderIds(id1, id2,pd); //order the ids.
-  
-  if (id1 >= pd->size)    //the pair doesnot exist in the set. So, do nothing
-    return;           //but return.
-  
-  Elem *current = pd->arr[id1]; //otherwise, select the correct list.
-  
-  if (current == NULL) //if this list is empty, the pair doesn't exist.
-    {                  //so, return. 
-      return;
-    }
-  else if (current->id == id2)   //otherwise, if id2 is the first element, 
-    {                            //delete it.
-      pd->arr[id1] = current->next;
-      delete current;
-      return;
-    }
-  else
-    {
-      while (current->next != NULL)     //if id2 is not the first element,
-	{                               //start traversing the sorted list.
-	  
-	  if (current->next->id > id2)  //if you have moved too far away
-	    {                           //without hitting id2, then the pair
-	      return;                   //pair doesn't exist. So, return.
-	    }
-	  else if (current->next->id == id2)  //otherwise, delete id2.
-	    {
-	      Elem *temp = current->next;
-	      current->next = current->next->next;
-	      delete temp;
-	      return;
-	    }
-	  current = current->next;
-	}
-    }
-}
-
-__host__ __device__ void DelPairsInvolvingId(int id, PairData *pd)  //delete all pairs containing id.
-{
-  if (id < pd->size)
-    {
-      Elem *temp = pd->arr[id];
-      while (temp != NULL)
-	{
-	  Elem *t = temp;
-	  temp = temp->next;
-	  delete t;
-	}
-      pd->arr[id] = NULL;
-      
-      int i;
-      for (i=0; i<id; i++)
-	DelPair(i, id, pd);
-    }
-  else
-    {
-      int i;
-      for (i=0;i<pd->size; i++)
-	DelPair(i, id, pd);
-    }
-}
-
-__host__ __device__ void Clear(PairData *pd)     //delete all pairs from the set.
-{
-  int i;
-  for (i=0; i<pd->size; i++)
-    {
-      while (pd->arr[i] != NULL)
-	{
-	  Elem *current = pd->arr[i];
-	  pd->arr[i] = current->next;
-	  delete current;
-	}
-    }
-};
-
-__host__ __device__ int ExistsPair(int id1, int id2, PairData *pd)  //check if a pair exists in the
-{                                           //set.
-  OrderIds(id1, id2, pd);      //order the ids.
-  
-  if (id1 >=pd->size)    //if id1 >= size, then the pair cannot exist.
-    return 0;
-  
-  Elem *current = pd->arr[id1];  //otherwise, find the correct list and traverse
-  while (current != NULL)    //it, looking for id2.
-    {
-      if (current->id == id2)
-	return 1;
-      if (current->id > id2)
-	return 0;
-      
-      current = current->next;
-    }
-  return 0;
-}
 
 inline double GT(double a, double b)
 {
   return (( (a) > (b) ) ? (a) : (b));
 }
 
+
+
  
 
 void add_overlap_pair(int id1, int id2, NBody * obj) //add a pair to the set of
   {                                     //overlapping pairs.
       if (id1 != id2)
-	        AddPair(id1, id2, &(obj->overlapping_pairs));
+	        obj->overlapping_pairs.AddPair(id1, id2);
   }
-
   
-  
-void del_overlap_pair(int id1, int id2, NBody * obj) //delete a pair from the set.
+  void del_overlap_pair(int id1, int id2, NBody * obj) //delete a pair from the set.
     {
       if (id1 != id2)
-	        DelPair(id1, id2, &(obj->overlapping_pairs));
+	        obj->overlapping_pairs.DelPair(id1, id2);
     }
 
 int overlaps(AABB *obj1, AABB *obj2) //to check it the two AABBs overlap.
@@ -295,43 +117,23 @@ int overlaps(AABB *obj1, AABB *obj2) //to check it the two AABBs overlap.
   return 1;
 }
 
-__global__ void nbody_gpu(NBody *obj) {
-    
-  for (int i =0; i < 3;i++){
-    obj->head[i] = new EndPoint;
-    obj->head[i]->minmax = MIN;
-    // cudaMalloc((void**)&obj->cudaHead[i], sizeof(EndPoint));
-    // cudaMemcpy(obj->cudaHead[i], obj->head[i], sizeof(EndPoint), cudaMemcpyHostToDevice);
-    obj->head[i]->val[0] = - (1<<29);
-    obj->head[i]->val[1] = - (1<<29);
-    obj->head[i]->val[2] = - (1<<29);
-      obj->AABB_arr = new AABB*[obj->size];  //allocate the dynamic array and initialize
-  int i;
-  for (i=0; i<obj->size; i++)      //all its elements to NULL.
-    obj->AABB_arr[i] = NULL;
-  }
-  printf("nbody from block %d, thread %d\n", blockIdx.x, obj->size);
-}
 
-void NBody_constructor(NBody *obj, int mySize, NBody *cuda_nbody)  //constructor.
+
+void NBody_constructor(NBody *obj, int mySize)  //constructor.
 {
-  obj->size = mySize;
-
+ 
   for (int i =0; i < 3;i++){
     obj->head[i] = new EndPoint;
     obj->head[i]->minmax = MIN;
-    // cudaMalloc((void**)&obj->cudaHead[i], sizeof(EndPoint));
-    // cudaMemcpy(obj->cudaHead[i], obj->head[i], sizeof(EndPoint), cudaMemcpyHostToDevice);
+    cudaMalloc((void**)&obj->cudaHead[i], sizeof(EndPoint));
+    cudaMemcpy(obj->cudaHead[i], obj->head[i], sizeof(EndPoint), cudaMemcpyHostToDevice);
     obj->head[i]->val[0] = - (1<<29);
     obj->head[i]->val[1] = - (1<<29);
     obj->head[i]->val[2] = - (1<<29);
   }
-  cudaMalloc(&cuda_nbody, sizeof(NBody));
-  cudaMemcpy(cuda_nbody, obj, sizeof(NBody), cudaMemcpyHostToDevice);
-  nbody_gpu<<<1, 1>>>(cuda_nbody);
-  cudaDeviceSynchronize();
-  
 
+ 
+  obj->size = mySize;
   obj->AABB_arr = new AABB*[obj->size];  //allocate the dynamic array and initialize
   int i;
   for (i=0; i<obj->size; i++)      //all its elements to NULL.
@@ -465,9 +267,7 @@ void updatetempTrans(int id, double trans[][4], NBody * obj){
 }
 
 
-
-
-double  findRadius(AABB *curr, Object *b){
+double findRadius(AABB *curr, Object *b){
   double val = 0.0;
 
   for (int i=0; i<(b->num_tris); i++)
@@ -502,34 +302,20 @@ void findCenter(AABB *curr, Object *b){
   }
 }
 
-__global__ void print_kernel(AABB * curr) {
-    
-    EndPoint lo = (EndPoint){.minmax = MIN, .aabb = curr};
-  EndPoint hi = (EndPoint){.minmax = MAX, .aabb = curr};
-  curr->lo = &lo;
-  curr->hi = &hi;
-  for (int w=0; w<3; w++){
-  curr->lo->val[w] = curr->center[w] - curr->radius; 
-  curr->hi->val[w] = curr->center[w] + curr->radius;
-  }
-  //printf("Hello from block %d, thread %f\n", blockIdx.x, curr->lo->val[0]);
-}
-void AddObject(int id, Object *b, NBody * obj, NBody * cuda_obj) //add a new object
+
+void AddObject(int id, Object *b, NBody * obj) //add a new object
 {
   //std::cout<<"got here\n";
   AABB *curr = new AABB;
+  
   curr->id = id; //set the id to the given value.
+  findRadius(curr, b);  
   curr->radius = findRadius(curr, b);
   EndPoint lo = (EndPoint){.minmax = MIN, .aabb = curr};
   EndPoint hi = (EndPoint){.minmax = MAX, .aabb = curr};
   curr->lo = &lo;
   curr->hi = &hi;
-  AABB *cudacurr;
-  cudaMalloc(&cudacurr, sizeof(AABB));
-  cudaMemcpy(cudacurr, curr, sizeof(AABB), cudaMemcpyHostToDevice);
-  print_kernel<<<1, 1>>>(cudacurr);
-  cudaDeviceSynchronize();
-  
+
 
   for (int w=0; w<3; w++){
   curr->lo->val[w] = curr->center[w] - curr->radius; 
@@ -544,7 +330,7 @@ void AddObject(int id, Object *b, NBody * obj, NBody * cuda_obj) //add a new obj
 	        add_overlap_pair(curr->id, i, obj);
     }
 
-  std::cout << obj->size << "\n";
+    std::cout << obj->size << "\n";
      std::cout << id << "\n";
 
   obj->AABB_arr[id] = curr;  //finally, insert the AABB in AABB_arr.
@@ -572,6 +358,8 @@ void AddObject(int id, Object *b, NBody * obj, NBody * cuda_obj) //add a new obj
     }
   
 }
+
+
 
 void deleteObjects(int id, NBody * obj) //deleting an AABB with given id.
 {
@@ -604,7 +392,7 @@ void deleteObjects(int id, NBody * obj) //deleting an AABB with given id.
   
   //delete all entries involving this id from the set of 
   //overlapping pairs.
-  DelPairsInvolvingId(id, &(obj->overlapping_pairs));
+  obj->overlapping_pairs.DelPairsInvolvingId(id);
   
   //de-allocate the memory
   delete curr->lo;
@@ -619,17 +407,14 @@ VCInternal::VCInternal(int mySize)
   next_id = 0;
   
   vc_objects = new VCObject*[mySize]; //allocate the array.
-  
-  NBody_constructor(&nbody, mySize, cuda_nbody);
-  init_PairData(&report_data );
-  init_PairData(&disabled );
-  init_PairData(&(nbody.overlapping_pairs));
+  NBody_constructor(&nbody, mySize);
   int i;
   for (i=0; i<mySize; i++)
     vc_objects[i] = NULL;
 
-  Clear(&disabled);  //to begin with, no pairs are disabled.
+  disabled.Clear();  //to begin with, no pairs are disabled.
 }
+
 
 VCInternal::~VCInternal()
 {
@@ -644,7 +429,6 @@ VCInternal::~VCInternal()
 	  delete vc_objects[i];
 	}
     }
-  std::cout << "got here";
   delete [] vc_objects;
 }
 
@@ -652,23 +436,22 @@ VCInternal::~VCInternal()
 //2 assign the object an id and activate the object
 int VCInternal::NewObject(int *id) //create a new object in the database.
 {
- 
+
   //increase the size of the "vc_objects" array if required.
-  // if (next_id >= size) 
-  //   {
-  //     int newsize = (next_id >= 2*size) ? (next_id+1) : 2*size;
-  //     VCObject **temp = new VCObject*[newsize];
-  //     int i;
-  //     for (i=0; i<size; i++)
-	// temp[i] = vc_objects[i];
-  //     for (i=size; i<newsize; i++)
-	// temp[i] = NULL;
-  //     delete [] vc_objects;
-  //     vc_objects = temp;
-  //     size = newsize;
+  if (next_id >= size) 
+    {
+      int newsize = (next_id >= 2*size) ? (next_id+1) : 2*size;
+      VCObject **temp = new VCObject*[newsize];
+      int i;
+      for (i=0; i<size; i++)
+	temp[i] = vc_objects[i];
+      for (i=size; i<newsize; i++)
+	temp[i] = NULL;
+      delete [] vc_objects;
+      vc_objects = temp;
+      size = newsize;
       
-  //   }
-    std::cout << "got here\n"; 
+    }
   
   //allocate a new object.
   vc_objects[next_id] = new VCObject;
@@ -697,7 +480,7 @@ int VCInternal::AddTri(double v1[], double v2[], double v3[])
 int VCInternal::EndObject(void)
 {  
 
-  AddObject(current_id, vc_objects[current_id]->b, &nbody, cuda_nbody);
+  AddObject(current_id, vc_objects[current_id]->b, &nbody);
   
   vc_objects[current_id]->b->EndModel();
 
@@ -731,7 +514,7 @@ int VCInternal::UpdateTrans(int id, double t[][4])
 
 int VCInternal::ActivatePair(int id1, int id2)
 {
-      DelPair(id1, id2, &disabled);
+      disabled.DelPair(id1, id2);
       return 0;
 }
 
@@ -739,7 +522,7 @@ int VCInternal::DeactivatePair(int id1, int id2)
 {
 
       if (id1!=id2)
-	AddPair(id1, id2, &disabled);
+	disabled.AddPair(id1, id2);
       
     return 0;
 }
@@ -752,7 +535,7 @@ int VCInternal::DeleteObject(int id) //delete an object from the database.
       delete vc_objects[id];    //delete the object.
       vc_objects[id] = NULL; 
       
-      DelPairsInvolvingId(id, &disabled);
+      disabled.DelPairsInvolvingId(id);
 
       deleteObjects(id, &nbody); //delete the object from the nbody database.
       return 0;
@@ -765,7 +548,7 @@ int VCInternal::Collide(void)  //perform collision detection.
 
   
   //Clear the results from earlier collision tests.
-    Clear(&report_data);
+  report_data.Clear();
   
   //Simultaneously traverse the "overlapping_pairs" database and the 
   //"disabled_pairs" database and make calls to the RAPID collision
@@ -804,7 +587,7 @@ int VCInternal::Collide(void)  //perform collision detection.
 			      //if there is a collision, then add the pair to the
 			      //collision report database.
 			if (Object_num_contacts != 0)
-			      AddPair(i, vc_objects[curr_ovrlp->id]->id, &report_data);
+			      report_data.AddPair(i, vc_objects[curr_ovrlp->id]->id);
 			      
 		  curr_ovrlp = curr_ovrlp->next;
 		}

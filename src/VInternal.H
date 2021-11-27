@@ -137,6 +137,8 @@ class VCInternal
   PairData disabled;    //set of disabled pairs.
   int      size;        //size of the "vcobjects" array.
   VCObject **vc_objects;//array of pointers to VCObjects.
+  NBody    *cuda_nbody; 
+
   
 public:
   VCInternal(int size);
@@ -161,14 +163,12 @@ public:
 
   int Report(int size, VCReportType *vcrep);
                       //report the results of collision detection.
-
     
 int 
 tri_contact (double *P1, double *P2, double *P3,
 	     double *Q1, double *Q2, double *Q3);
 
-int
-obb_disjoint(double B[3][3], double T[3], double a[3], double b[3]);
+int obb_disjoint(double B[3][3], double T[3], double a[3], double b[3]);
 
 };
 
