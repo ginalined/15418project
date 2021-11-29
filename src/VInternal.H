@@ -108,7 +108,7 @@ private:
   Object *b;          //RAPID box for the object. This also stores
                            //the geometry of the object.
   
-  double      trans[4][4]; //the current transformation matrix for the object.
+  double      trans[16]; //the current transformation matrix for the object.
   int         activation_state; //1=>object is activated, 0=>deactivated.
 };
 
@@ -138,6 +138,7 @@ class VCInternal
   int      size;        //size of the "vcobjects" array.
   VCObject **vc_objects;//array of pointers to VCObjects.
   NBody    *cuda_nbody; 
+  int temp_index; 
 
   
 public:
@@ -149,7 +150,9 @@ public:
                                                       //geometry .
   int EndObject(void);    //tell VCollide that inserting the 
                           //geometry is complete.
-  int UpdateTrans(int id, double trans[][4]);
+  //int UpdateTrans(int* id, int total, double ** trans);
+  int UpdateTrans(int id, double *trans);
+   int UpdateAllTrans(int id, double *trans);
                           //update the transformation matrix of
                           //the object.
   int ActivateObject(int id);       //activate for collision detection.

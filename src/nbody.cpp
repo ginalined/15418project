@@ -109,39 +109,47 @@ int main(int argc, char *argv[])
   
   
   FILE *fp = fopen(argv[2], "r");
-  
+
   for (i=1; i<=SIMULATION_STEPS; i++)  //perform the simulation.
   {
       cout<<"Simulation step : "<<i<<"\n";
       int j;
+      double** all_trans = new double*[NO_OF_OBJECTS];
+      for(int k = 0; k < NO_OF_OBJECTS; ++k)
+          all_trans[k] = new double[16];
+
       for (j=0; j<NO_OF_OBJECTS; j++)
 	{
-	  double trans[4][4];
-	  
+	  //double trans[4][4];
 	  //read in the transformation matrix.
-	  fscanf(fp, "%lf", &(trans[0][0]));
-	  fscanf(fp, "%lf", &(trans[0][1]));
-	  fscanf(fp, "%lf", &(trans[0][2]));
-	  fscanf(fp, "%lf", &(trans[0][3]));
+	  fscanf(fp, "%lf", &(all_trans[j][0]));
+	  fscanf(fp, "%lf", &(all_trans[j][1]));
+	  fscanf(fp, "%lf", &(all_trans[j][2]));
+	  fscanf(fp, "%lf", &(all_trans[j][3]));
 	  
-	  fscanf(fp, "%lf", &(trans[1][0]));
-	  fscanf(fp, "%lf", &(trans[1][1]));
-	  fscanf(fp, "%lf", &(trans[1][2]));
-	  fscanf(fp, "%lf", &(trans[1][3]));
+	  fscanf(fp, "%lf", &(all_trans[j][4]));
+	  fscanf(fp, "%lf", &(all_trans[j][5]));
+	  fscanf(fp, "%lf", &(all_trans[j][6]));
+	  fscanf(fp, "%lf", &(all_trans[j][7]));
 	  
-	  fscanf(fp, "%lf", &(trans[2][0]));
-	  fscanf(fp, "%lf", &(trans[2][1]));
-	  fscanf(fp, "%lf", &(trans[2][2]));
-	  fscanf(fp, "%lf", &(trans[2][3]));
+	  fscanf(fp, "%lf", &(all_trans[j][8]));
+	  fscanf(fp, "%lf", &(all_trans[j][9]));
+	  fscanf(fp, "%lf", &(all_trans[j][10]));
+	  fscanf(fp, "%lf", &(all_trans[j][11]));
 	  
-	  fscanf(fp, "%lf", &(trans[3][0]));
-	  fscanf(fp, "%lf", &(trans[3][1]));
-	  fscanf(fp, "%lf", &(trans[3][2]));
-	  fscanf(fp, "%lf", &(trans[3][3]));
-	  
+	  fscanf(fp, "%lf", &(all_trans[j][12]));
+	  fscanf(fp, "%lf", &(all_trans[j][13]));
+	  fscanf(fp, "%lf", &(all_trans[j][14]));
+	  fscanf(fp, "%lf", &(all_trans[j][15]));
+	 
 	  //update the object's transformation.
-	  vc.UpdateTrans(id[j], trans);
+
 	}
+    for (j=0; j<NO_OF_OBJECTS; j++){
+      vc.UpdateTrans(id[j], all_trans[j]);
+    }
+
+  //vc.UpdateTrans(id, NO_OF_OBJECTS, all_trans);
       
       vc.Collide();  //perform collision test.
       
@@ -163,6 +171,7 @@ int main(int argc, char *argv[])
 	      cout<<"Detected collision between objects "<<vcrep[j].id1<<" and "<<vcrep[j].id2<<"\n";
 
     }
+    cout<<" Finish Detected collision between objects\n";
 
    
     return 0;

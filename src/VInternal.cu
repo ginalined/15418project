@@ -265,7 +265,15 @@ void add_overlap_pair(int id1, int id2, NBody * obj) //add a pair to the set of
   {                                     //overlapping pairs.
       if (id1 != id2)
 	        AddPair(id1, id2, &(obj->overlapping_pairs));
+      
   }
+
+__global__ void cuda_add_overlap_pair(int *id1, int *id2, NBody * obj) //add a pair to the set of
+  {                                     //overlapping pairs.
+      if (*id1 != *id2)
+	        AddPair(*id1, *id2, &(obj->overlapping_pairs));
+  }
+
 
   
   
@@ -358,7 +366,7 @@ void delete_node(EndPoint* delnode, int dim) {
     }
 
 
-void updatetempTrans(int id, double trans[][4], NBody * obj){
+void updatetempTrans(int id, double *trans, NBody * obj){
   
   AABB *current = obj->AABB_arr[id];
   
@@ -372,7 +380,7 @@ void updatetempTrans(int id, double trans[][4], NBody * obj){
 
 
   for (int dim = 0; dim < 3; dim ++){
-    new_center[dim] = current->center[0] * trans[dim][0] + current->center[1] * trans[dim][1] + current->center[2] * trans[dim][2] + trans[dim][3];
+    new_center[dim] = current->center[0] * trans[dim*4+0] + current->center[1] * trans[dim*4+1] + current->center[2] * trans[dim*4+2] + trans[dim*4+3];
     min[dim] = lo.val[dim] = new_center[dim] - current->radius;
     max[dim] =  hi.val[dim] = new_center[dim] + current->radius;
     
@@ -382,6 +390,7 @@ void updatetempTrans(int id, double trans[][4], NBody * obj){
   int coord;
   for (coord=0; coord<3; coord++)
     {
+       
       int direction;
       EndPoint *temp;
       
@@ -392,9 +401,9 @@ void updatetempTrans(int id, double trans[][4], NBody * obj){
 	        direction = FORWARD;
       else
 	        direction = NOCHANGE;
-      
+     
   if (direction == REVERSE) //backward motion....
-	{
+	{ std::cout << "got here is reverse\n";
 
 	  temp = current->lo;
 	  while ((temp != NULL) && (temp->val[coord] > min[coord]))
@@ -427,22 +436,30 @@ void updatetempTrans(int id, double trans[][4], NBody * obj){
     add_node(current->hi, coord, temp);
 	  current->hi->val[coord] = max[coord];
 	    }
+     
 	}
   else if (direction == FORWARD) //forward motion....
 	{
+
 	  //here, we first update the "hi" endpoint.
 	  if (current->hi->next[coord] != NULL)
 	    {
 	      temp = current->hi;
+
 	      while ( (temp->next[coord] != NULL) && (temp->next[coord]->val[coord]< max[coord]) )
 		{
-		  if (temp->minmax == MIN)
-		    if (overlaps(temp->aabb, &dummy))
-		      add_overlap_pair(temp->aabb->id, current->id, obj);
+
+		  if (temp->minmax == MIN){
+		    if (overlaps(temp->aabb, &dummy)){
+        add_overlap_pair(temp->aabb->id, current->id, obj);
+        }
+      }
 		  temp = temp->next[coord];
 		}
+    
 	  delete_node(current->hi, coord);
     add_node(current->hi, coord, temp);
+  
 
 	    }
 	  current->hi->val[coord] = max[coord];
@@ -514,6 +531,11 @@ __global__ void print_kernel(AABB * curr) {
   }
   //printf("Hello from block %d, thread %f\n", blockIdx.x, curr->lo->val[0]);
 }
+
+__global__ void cuda_assign(AABB * curr, NBody * obj,  int * id){
+  obj->AABB_arr[*id] = curr; 
+
+}
 void AddObject(int id, Object *b, NBody * obj, NBody * cuda_obj) //add a new object
 {
   //std::cout<<"got here\n";
@@ -535,20 +557,30 @@ void AddObject(int id, Object *b, NBody * obj, NBody * cuda_obj) //add a new obj
   curr->lo->val[w] = curr->center[w] - curr->radius; 
   curr->hi->val[w] = curr->center[w] + curr->radius;
   }
-
+int * temp_index;
+cudaMalloc(&temp_index, sizeof(int));
 
   for (int i=0; i<obj->size; i++)      //Now, check the overlap of this AABB with 
-  {                         //with all other AABBs and add the pair to
+  {  
+                          //with all other AABBs and add the pair to
   if (obj->AABB_arr[i])        //the set of overlapping pairs if reqd.
 	    if (overlaps(curr, obj->AABB_arr[i]))
-	        add_overlap_pair(curr->id, i, obj);
+      {
+  
+cudaMemcpy(temp_index, &i, sizeof(int), cudaMemcpyHostToDevice);
+  add_overlap_pair(curr->id, i, obj);
+  cuda_add_overlap_pair<<<1, 1>>>(&cudacurr->id, temp_index , cuda_obj);
+      }
+	      
+          
+          //add_overlap_pair(cudacurr->id, i, cuda_obj);
     }
-
+cuda_assign<<<1, 1>>>(cudacurr, cuda_obj, &id);
   std::cout << obj->size << "\n";
      std::cout << id << "\n";
 
   obj->AABB_arr[id] = curr;  //finally, insert the AABB in AABB_arr.
-  
+  //cuda_obj->AABB_arr[id] = cudacurr; 
 
   //Now, for each of the three co-ordinates, insert the interval
   //in the correspoding list. 
@@ -624,6 +656,7 @@ VCInternal::VCInternal(int mySize)
   init_PairData(&report_data );
   init_PairData(&disabled );
   init_PairData(&(nbody.overlapping_pairs));
+  init_PairData(&(cuda_nbody->overlapping_pairs));
   int i;
   for (i=0; i<mySize; i++)
     vc_objects[i] = NULL;
@@ -636,16 +669,16 @@ VCInternal::~VCInternal()
 
   //deallocate the memory.
   int i;
-  for (i=0; i<size; i++)
-    {
-      if (vc_objects[i])
-	{
-	  delete vc_objects[i]->b;
-	  delete vc_objects[i];
-	}
-    }
-  std::cout << "got here";
-  delete [] vc_objects;
+  // for (i=0; i<size; i++)
+  //   {
+  //     if (vc_objects[i]!=NULL)
+	// {
+	//   //delete vc_objects[i]->b;
+	//   delete vc_objects[i];
+	// }
+  //   }
+  // std::cout << "got here";
+  //delete [] vc_objects;
 }
 
 //1. check if the size fit in
@@ -702,17 +735,59 @@ int VCInternal::EndObject(void)
   vc_objects[current_id]->b->EndModel();
 
   memset( ( (void *)vc_objects[current_id]->trans), 0, 16*sizeof(double) );
-  vc_objects[current_id]->trans[0][0] = 1.0;
-  vc_objects[current_id]->trans[1][1] = 1.0;
-  vc_objects[current_id]->trans[2][2] = 1.0;
-  vc_objects[current_id]->trans[3][3] = 1.0;
+  vc_objects[current_id]->trans[0] = 1.0;
+  vc_objects[current_id]->trans[4+1] = 1.0;
+  vc_objects[current_id]->trans[8+2] = 1.0;
+  vc_objects[current_id]->trans[12+3] = 1.0;
   
   return 0;
   
 }
 
+__global__ void cuda_update_trans(int id_max, double * trans, NBody * obj){
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  if (id >= id_max)
+    return;
+  AABB *current = obj->AABB_arr[id];
+  cudaPoint * lo = current->cuda_lo;
+  cudaPoint * hi = current->cuda_hi;
+  double new_center[3];
+  for (int dim = 0; dim < 3; dim ++){
+    new_center[dim] = current->center[0] * trans[dim*4] + current->center[1] * trans[dim*4+1] + current->center[2] * trans[dim*4+2] + trans[dim*4+3];
+    lo->val[dim] = new_center[dim] - current->radius;
+    hi->val[dim] = new_center[dim] + current->radius;
+  }
 
-int VCInternal::UpdateTrans(int id, double t[][4])
+
+}
+
+// int VCInternal::UpdateTrans(int* id, int total, double ** trans)
+// {           
+//   //cuda_update_trans
+  
+  
+//   //update the private copy of the transformation matrix.
+  
+  
+//   //have the nbody database update itself appropriately.
+//   //updateteTrans(current->id, t, &nbody);
+  
+//   for (int i =0; i < total; i++){
+//     VCObject *current = vc_objects[id[i]];
+//     memcpy((void *)current->trans, (void *)trans[id[i]], 16*sizeof(double));
+//     std::cout << "here\n";
+//     updatetempTrans(current->id, trans[id[i]], &nbody);
+//     std::cout << "here\n";
+//   }
+  
+//   //nbody_gpu<<<1, 1>>>(cuda_nbody);
+  
+
+//   return 0;
+  
+// }
+
+int VCInternal::UpdateTrans(int id, double *t)
 {           
 
   VCObject *current = vc_objects[id];
@@ -789,13 +864,13 @@ int VCInternal::Collide(void)  //perform collision detection.
       for (int index = 0; index < 9; index++){
         int x = index/3;
         int y = index%3;
-        R1[x][y] = vc_objects[i]->trans[x][y];
-        R2[x][y] = vc_objects[curr_ovrlp->id]->trans[x][y];
+        R1[x][y] = vc_objects[i]->trans[x*4+y];
+        R2[x][y] = vc_objects[curr_ovrlp->id]->trans[x*4+y];
       }
 
       for (int index = 0; index < 3; index++){
-        T1[index] = vc_objects[i]->trans[index][3];
-        T2[index] = vc_objects[curr_ovrlp->id]->trans[index][3];
+        T1[index] = vc_objects[i]->trans[index*4+3];
+        T2[index] = vc_objects[curr_ovrlp->id]->trans[index*4+3];
       }
 
 			      //call the RAPID collision detection routine.

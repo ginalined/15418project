@@ -72,6 +72,7 @@ Description: The class NBody forms the core of VCollide. It
 \************************************************************************/
 struct AABB;  //defined in file AABB.H
 struct EndPoint;
+struct cudaPoint;
 const int MIN=1;
 const int MAX=2;
 
@@ -98,6 +99,9 @@ struct AABB
   double       radius;         // radius of the AABB
   EndPoint     *lo;            // the (min_x, min_y, min_z) and  
   EndPoint     *hi;            // (max_x, max_y, max_z) corners of
+  cudaPoint    *cuda_lo;
+  cudaPoint    *cuda_hi;
+
    
 };   
 
@@ -112,8 +116,13 @@ struct EndPoint
   EndPoint    *prev[3];   //for maintaining the three linked
   EndPoint    *next[3];   //lists.
 
-  
 
+};
+struct cudaPoint
+{
+  char        minmax;     
+  AABB        *aabb;      
+  double      val[3];     
 };
 
 struct NBody

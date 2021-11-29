@@ -184,6 +184,7 @@ int main(int argc, char *argv[])
 	cout<<"Detected collision between objects "<<vcrep[j].id1<<" and "<<vcrep[j].id2<<"\n";
       
     }
+    cout<<" Finish Detected collision between objects\n";
     return 0;
 }
 
