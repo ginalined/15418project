@@ -152,7 +152,7 @@ public:
                           //geometry is complete.
   //int UpdateTrans(int* id, int total, double ** trans);
   int UpdateTrans(int id, double *trans);
-   int UpdateAllTrans(int id, double *trans);
+   int UpdateAllTrans(int id[], int total, double * trans);
                           //update the transformation matrix of
                           //the object.
   int ActivateObject(int id);       //activate for collision detection.

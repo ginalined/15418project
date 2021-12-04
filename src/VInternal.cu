@@ -73,6 +73,8 @@ Description: This file implements the member functions of the class vinternal.c
 #include "objects.h"
 
 #include <math.h>  
+#include <thrust/sort.h>
+#include <thrust/execution_policy.h>
 
 
 
@@ -261,7 +263,7 @@ inline double GT(double a, double b)
 
  
 
-void add_overlap_pair(int id1, int id2, NBody * obj) //add a pair to the set of
+__host__ __device__ void add_overlap_pair(int id1, int id2, NBody * obj) //add a pair to the set of
   {                                     //overlapping pairs.
       if (id1 != id2)
 	        AddPair(id1, id2, &(obj->overlapping_pairs));
@@ -303,6 +305,25 @@ int overlaps(AABB *obj1, AABB *obj2) //to check it the two AABBs overlap.
   return 1;
 }
 
+__device__ int overlaps_cuda(AABB *obj1, AABB *obj2) //to check it the two AABBs overlap.
+{
+  int coord;
+  for (coord=0; coord<3; coord++)
+    {
+      if (obj1->cuda_lo->val[coord] < obj2->cuda_lo->val[coord])
+	{
+	  if (obj2->cuda_lo->val[coord] > obj1->cuda_hi->val[coord])
+	    return 0;
+	}
+      else
+	{
+	  if (obj1->cuda_lo->val[coord] > obj2->cuda_hi->val[coord])
+	    return 0;
+	}
+    }
+  
+  return 1;
+}
 __global__ void nbody_gpu(NBody *obj) {
     
   for (int i =0; i < 3;i++){
@@ -701,7 +722,6 @@ int VCInternal::NewObject(int *id) //create a new object in the database.
   //     size = newsize;
       
   //   }
-    std::cout << "got here\n"; 
   
   //allocate a new object.
   vc_objects[next_id] = new VCObject;
@@ -739,70 +759,114 @@ int VCInternal::EndObject(void)
   vc_objects[current_id]->trans[4+1] = 1.0;
   vc_objects[current_id]->trans[8+2] = 1.0;
   vc_objects[current_id]->trans[12+3] = 1.0;
-  
   return 0;
   
 }
 
-__global__ void cuda_update_trans(int id_max, double * trans, NBody * obj){
+__global__ void cuda_update_trans(int * id_max, double * trans, NBody * obj){
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  if (id >= id_max)
+  if (id >= *id_max)
     return;
   AABB *current = obj->AABB_arr[id];
   cudaPoint * lo = current->cuda_lo;
   cudaPoint * hi = current->cuda_hi;
   double new_center[3];
   for (int dim = 0; dim < 3; dim ++){
-    new_center[dim] = current->center[0] * trans[dim*4] + current->center[1] * trans[dim*4+1] + current->center[2] * trans[dim*4+2] + trans[dim*4+3];
+    new_center[dim] = current->center[0] * trans[id*16+dim*4] + current->center[1] * trans[id*16+dim*4+1] + current->center[2] * trans[id*16+dim*4+2] + trans[id*16+dim*4+3];
     lo->val[dim] = new_center[dim] - current->radius;
     hi->val[dim] = new_center[dim] + current->radius;
+    // output[dim * (*id_max)*2 + id * 2 ] = lo->val[dim];
+    // output[dim * (*id_max)*2 + id * 2 + 1] = hi->val[dim];
   }
+}
 
+__global__ void cuda_get_collision(int * id_max,  NBody * obj){
+  printf("got hhere\n");
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+ 
+  // if (index>= *id_max)
+  //   return;
+  // AABB *current = obj->AABB_arr[index];
+  
+  // for (int i = 0;i < *id_max;i++){
+  //   if (i!=index && overlaps_cuda(current,obj->AABB_arr[i])){
+  //     add_overlap_pair(index, i, obj);
+      
+  //   }
+
+    
+  // }
 
 }
 
-// int VCInternal::UpdateTrans(int* id, int total, double ** trans)
-// {           
-//   //cuda_update_trans
+// __global__ void cuda_sort(int * id_max, double * trans, NBody * obj, cudaPoint * output, int * key){
+//   int id = blockIdx.x * blockDim.x + threadIdx.x;
   
-  
-//   //update the private copy of the transformation matrix.
-  
-  
-//   //have the nbody database update itself appropriately.
-//   //updateteTrans(current->id, t, &nbody);
-  
-//   for (int i =0; i < total; i++){
-//     VCObject *current = vc_objects[id[i]];
-//     memcpy((void *)current->trans, (void *)trans[id[i]], 16*sizeof(double));
-//     std::cout << "here\n";
-//     updatetempTrans(current->id, trans[id[i]], &nbody);
-//     std::cout << "here\n";
+//   if (id >= *id_max)
+//     return;
+//   AABB *current = obj->AABB_arr[id];
+//   cudaPoint * lo = current->cuda_lo;
+//   cudaPoint * hi = current->cuda_hi;
+//   double new_center[3];
+//   for (int dim = 0; dim < 3; dim ++){
+//     new_center[dim] = current->center[0] * trans[id*16+dim*4] + current->center[1] * trans[id*16+dim*4+1] + current->center[2] * trans[id*16+dim*4+2] + trans[id*16+dim*4+3];
+//     lo->val[dim] = new_center[dim] - current->radius;
+//     hi->val[dim] = new_center[dim] + current->radius;
+//     output
 //   }
-  
-//   //nbody_gpu<<<1, 1>>>(cuda_nbody);
-  
-
-//   return 0;
-  
+//   output[id * 6]= *(current->cuda_lo);
 // }
+
+__global__ void print_kernel1() {
+    printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
+}
+
+
+int VCInternal::UpdateAllTrans(int id[], int total, double * trans)
+{           
+  
+  for (int j=0; j<total; j++){
+    
+   VCObject *current = vc_objects[id[j]];
+  memcpy((void *)current->trans, (void *)(&trans[16*j]), 16*sizeof(double));
+       
+    }
+    double *temp;
+    // double * cudaContainer;
+    // int * key;
+
+    cudaMalloc(&temp, sizeof(double) * total*17);
+    // cudaMalloc(&cudaContainer, sizeof(double) * total *7);
+    // cudaMalloc(&key, sizeof(int) * total*7);
+    cudaMemcpy(temp, trans, sizeof(double) * total*17, cudaMemcpyHostToDevice);
+    print_kernel1<<<10, 10>>>();
+    cudaDeviceSynchronize();
+
+    cuda_update_trans<<<16, 16>>>(&total, temp, cuda_nbody);
+    cudaDeviceSynchronize();
+    cuda_get_collision<<<32, 32>>>(&total, cuda_nbody);
+    cudaDeviceSynchronize();
+    
+    return 0;
+}
 
 int VCInternal::UpdateTrans(int id, double *t)
 {           
 
   VCObject *current = vc_objects[id];
-  
+
   //update the private copy of the transformation matrix.
   memcpy((void *)current->trans, (void *)t, 16*sizeof(double));
-  
+  updatetempTrans(current->id, t, &nbody);
   //have the nbody database update itself appropriately.
   //updateteTrans(current->id, t, &nbody);
-  updatetempTrans(current->id, t, &nbody);
+  //std::cout <<"stop: "<<  1<< std::endl;
   
-
+  
   return 0;
   
 }
+
 
 int VCInternal::ActivatePair(int id1, int id2)
 {

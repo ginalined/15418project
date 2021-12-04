@@ -114,40 +114,18 @@ int main(int argc, char *argv[])
   {
       cout<<"Simulation step : "<<i<<"\n";
       int j;
-      double** all_trans = new double*[NO_OF_OBJECTS];
-      for(int k = 0; k < NO_OF_OBJECTS; ++k)
-          all_trans[k] = new double[16];
+      double* all_trans = new double[NO_OF_OBJECTS*16];
 
       for (j=0; j<NO_OF_OBJECTS; j++)
 	{
-	  //double trans[4][4];
-	  //read in the transformation matrix.
-	  fscanf(fp, "%lf", &(all_trans[j][0]));
-	  fscanf(fp, "%lf", &(all_trans[j][1]));
-	  fscanf(fp, "%lf", &(all_trans[j][2]));
-	  fscanf(fp, "%lf", &(all_trans[j][3]));
-	  
-	  fscanf(fp, "%lf", &(all_trans[j][4]));
-	  fscanf(fp, "%lf", &(all_trans[j][5]));
-	  fscanf(fp, "%lf", &(all_trans[j][6]));
-	  fscanf(fp, "%lf", &(all_trans[j][7]));
-	  
-	  fscanf(fp, "%lf", &(all_trans[j][8]));
-	  fscanf(fp, "%lf", &(all_trans[j][9]));
-	  fscanf(fp, "%lf", &(all_trans[j][10]));
-	  fscanf(fp, "%lf", &(all_trans[j][11]));
-	  
-	  fscanf(fp, "%lf", &(all_trans[j][12]));
-	  fscanf(fp, "%lf", &(all_trans[j][13]));
-	  fscanf(fp, "%lf", &(all_trans[j][14]));
-	  fscanf(fp, "%lf", &(all_trans[j][15]));
-	 
-	  //update the object's transformation.
-
-	}
-    for (j=0; j<NO_OF_OBJECTS; j++){
-      vc.UpdateTrans(id[j], all_trans[j]);
+    for (int j1=0; j1<16; j1++){
+      fscanf(fp, "%lf", &(all_trans[j*16+j1]));
     }
+	}
+  vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
+    // for (j=0; j<NO_OF_OBJECTS; j++){
+    //   vc.UpdateTrans(id[j], all_trans[j]);
+    // }
 
   //vc.UpdateTrans(id, NO_OF_OBJECTS, all_trans);
       
