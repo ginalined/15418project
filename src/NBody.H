@@ -90,34 +90,28 @@ struct PairData
   Elem   **arr;  //arr points to a dynamic array. Each element of
 };
 
-
-struct AABB
-{
-
-  int          id;             
-  double       center[3];      // center of the AABB
-  double       radius;         // radius of the AABB
-  EndPoint     *lo;            // the (min_x, min_y, min_z) and  
-  EndPoint     *hi;            // (max_x, max_y, max_z) corners of
-  cudaPoint    *cuda_lo;
-  cudaPoint    *cuda_hi;
-
-   
-};   
-
 struct EndPoint
 {
 
   char        minmax;     //whether the instance represents a
                           //"min" or a "max" end-point.
-  AABB        *aabb;      //back pointer to the parent AABB.
-  
   double      val[3];     //the coordinates of the EndPoint.
-  EndPoint    *prev[3];   //for maintaining the three linked
-  EndPoint    *next[3];   //lists.
-
 
 };
+struct AABB
+{
+
+  int          id;             
+  double       center[3];      // center of the AABB
+  double       sorting_center;
+  double       radius;         // radius of the AABB
+  EndPoint     lo;            // the (min_x, min_y, min_z) and  
+  EndPoint     hi;            // (max_x, max_y, max_z) corners of
+
+   
+};   
+
+
 struct cudaPoint
 {
   char        minmax;     

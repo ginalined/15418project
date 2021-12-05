@@ -138,11 +138,16 @@ class VCInternal
   int      size;        //size of the "vcobjects" array.
   VCObject **vc_objects;//array of pointers to VCObjects.
   NBody    *cuda_nbody; 
+  AABB *   boxes;
+  AABB *   cuda_boxes;
+  int * overlaps;
+
   int temp_index; 
+  int screen_size;
 
   
 public:
-  VCInternal(int size);
+  VCInternal(int size, int ss);
   ~VCInternal();
 
   int NewObject(int *id); //create a new object in the database.
@@ -153,18 +158,16 @@ public:
   //int UpdateTrans(int* id, int total, double ** trans);
   int UpdateTrans(int id, double *trans);
    int UpdateAllTrans(int id[], int total, double * trans);
+  void AddObject(int id, Object *b);
+  int EndAllObjects(void); 
                           //update the transformation matrix of
                           //the object.
   int ActivateObject(int id);       //activate for collision detection.
-  int DeactivateObject(int id);     //deactivate from collision detection.
-  int ActivatePair(int id1, int id2);  //activate the pair.
-  int DeactivatePair(int id1, int id2);//deactivate the pair.
+  //__global__ void initAABB(int mySize);
 
-  int DeleteObject(int id);  //delete the object from the database.
 
   int Collide(void);  //perform collision detection.
 
-  int Report(int size, VCReportType *vcrep);
                       //report the results of collision detection.
     
 int 
