@@ -7,7 +7,7 @@
 using namespace std;
 
 const int NO_OF_OBJECTS=16;      //number of instances
-const int SIMULATION_STEPS=20;  //number of steps in the simulation.
+const int SIMULATION_STEPS=1;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 int main(int argc, char *argv[])
 {
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     }
   
   int num_tri;
-  VCInternal vc(NO_OF_OBJECTS + 20, SCREEN_SIZE);
+  VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
   int id[NO_OF_OBJECTS+ 20];
   
   int i;

@@ -23,23 +23,27 @@ static inline int nextPow2(int n)
     n++;
     return n;
 }
-__device__ __host__ void print_info(double * arr){
-    for (int i = 0; i < 16; i++){
-        printf("%f ", arr[i]);
-    }
-    printf("\n");
+
+int get_info(AABB * input){
+  
+  AABB *temp = new AABB[16];
+  cudaMemcpy(temp, input, 16 * sizeof(AABB), cudaMemcpyDeviceToHost);
+  printf("no way!\n");
+  for (int i = 0; i < 16;i++)
+    printf("the idea is that %f, %d\n",temp[i].center[0] , temp[i].id);
+  return 0;
 }
 
 __global__ 
 void MergeSort(AABB * input, int N, AABB * output, int total, int dim)
 {
+    
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int start = index * N;
     int end = (index+1) * N ;
     if (start >= total)
         return;
     
-
     int j = start;
     int k = start + (end - start)/2;
     for (int i = start; i < end; i++){
@@ -51,7 +55,7 @@ void MergeSort(AABB * input, int N, AABB * output, int total, int dim)
             output[i] = input[j];
             j++;
         }
-        else if (input[j]->center[dim] <= input[k]->center[dim]){
+        else if (input[j].center[dim] <= input[k].center[dim]){
             output[i] = input[j];
             j++;
         }else{
@@ -60,67 +64,50 @@ void MergeSort(AABB * input, int N, AABB * output, int total, int dim)
         }
     }
     
-    memcpy(&(input[start]), &(output[start]),sizeof(double) * N);
+    memcpy(&(input[start]), &(output[start]),sizeof(AABB) * N);
 }
 
-__global__ 
-void findOverlap(AABB * input, int batchSize, int * overlap, int total, int dim)
+__global__ void findOverlap(AABB * input, int batchSize, int * overlap, int total, int dim)
 {
+  //printf("this and next is %f, %f\n",input[i].hi.val[dim], input[j].lo.val[dim] );
+  printf("shall print something \n");
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int startIndex = batchSize * index;
   int endIndex = batchSize * (index+1);
   for(int i = startIndex; i < endIndex; i++){
     for (int j = i+1; j < total; i++){
-      if (input[i].hi < input[j].lo)
+      
+      if (input[i].hi.val[dim] < input[j].lo.val[dim])
         break;
       overlap[input[i].id * total + input[j].id] = 1;
     }
   }      
 }
 
-void sort_AABB(AABB * res, AABB * output, int N, int * overlap){
+void sort_AABB(AABB * res, int N, int * overlap){
   int original_size = N;
   int sort_block = 2;
+  
   N = nextPow2(N);
-  for (int dim = 0; dim < 3; dim++){
+
+  AABB * output;
+  cudaMalloc(&output, sizeof(AABB) * N);
+  //get_info(res);  
+  for (int dim = 0; dim < 1; dim++){
   while (sort_block <= N)
 	{
-		MergeSort<<<4,4>>>(res, N, output, total,  dim);
+		MergeSort<<<4,4>>>(res, sort_block, output, N,  dim);
 		cudaDeviceSynchronize();        
 		sort_block *= 2; 
 	}
-  findOverlap<<<4,4>>>(res, 1, overlap, total, dim);
+
+  findOverlap<<<4,4>>>(res, 1, overlap, N, dim);
+  printf("shall print something \n");
 
 }
 }
-void sorting(double * res, int N)
-{
-	//Copy the res to device code first
-	double * deviceinput;
-    double * deviceoutput;
-    int original_size = N;
-    N = nextPow2(N);
-	cudaMalloc(&deviceinput, N * sizeof(double));
-    cudaMalloc(&deviceoutput, N * sizeof(double));
-    cudaMemcpy(deviceinput, res, original_size * sizeof(double), cudaMemcpyHostToDevice);
-  
-    int sort_block = 2;
-    //print_info(res);
-	while (sort_block <= N)
-	{
 
-		MergeSort<<<4, 4>>>(deviceinput, sort_block, deviceoutput, N);
-		cudaDeviceSynchronize();
-    cudaMemcpy(res, deviceinput, N * sizeof(double), cudaMemcpyDeviceToHost);
-        //print_info(res);
-        
-		sort_block *= 2;
-	}
-    cudaMemcpy(res, deviceinput + N-original_size, original_size * sizeof(double), cudaMemcpyDeviceToHost);
- 
-	cudaFree(deviceinput);
 
-}
 
 
 
@@ -188,7 +175,7 @@ VCInternal::VCInternal(int mySize, int ss)
   state = VCstate_default;
   next_id = 0;
   screen_size = ss;
-  vc_objects = new VCObject*[mySize]; //allocate the array.
+  vc_objects = new VCObject*[mySize+20]; //allocate the array.
   size = mySize;
   cudaMalloc(&overlaps, sizeof(int) * mySize*mySize+2);
   
@@ -318,20 +305,6 @@ __global__ void cuda_update_trans(int id_max, double * trans,  AABB * cuda_boxes
 }
 
 
-__global__ void cuda_get_collision(int id_max, AABB * boxes){
-
-  int index = blockIdx.x * blockDim.x + threadIdx.x;
- 
-  if (index>= *id_max)
-    return;
-  AABB *current = obj->AABB_arr[index];
-  
-  for (int i = 0;i < *id_max;i++){
-    continue;
-  }
-
-}
-
 
 
 int VCInternal::UpdateAllTrans(int id[], int total, double * trans)
@@ -358,13 +331,8 @@ int VCInternal::UpdateAllTrans(int id[], int total, double * trans)
     
     cudaDeviceSynchronize();
     //EndAllObjects();
-    AABB * output;
-    
-    cudaMalloc(&output, sizeof(AABB) * total);
-    sorting(cuda_boxes, output, total);
-
-    
-    cudaMemset ( overlaps, 0, size * size);
+    cudaMemset(overlaps, 0, size * size);
+    sort_AABB(cuda_boxes, size, overlaps);
 
     //cuda_get_collision<<<32, 32>>>(&total, cuda_nbody);
     // cudaDeviceSynchronize();
