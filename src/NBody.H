@@ -56,7 +56,7 @@ Description: This file declares the class NBody.
 #ifndef NBODY_H
 #define NBODY_H
 
-#include "objects.h"
+
 /************************************************************************\
 Class: NBody
 --

@@ -7,7 +7,7 @@
 using namespace std;
 
 const int NO_OF_OBJECTS=16;      //number of instances
-const int SIMULATION_STEPS=1;  //number of steps in the simulation.
+const int SIMULATION_STEPS=100;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 int main(int argc, char *argv[])
 {
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	}
 
   vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
-  //vc.Collide();  
+  vc.Collide();  
       
     
     

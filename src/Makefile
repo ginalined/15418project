@@ -20,7 +20,7 @@ all: $(EXECUTABLE)
 
 default: $(EXECUTABLE)
 
-OBJS = objects.o  VInternal.o nbody.o 
+OBJS =  VInternal.o nbody.o 
 
 TARGET = libVCollide.a
 
