@@ -16,7 +16,7 @@ static moment * Object_moment = 0;
 static tri *Object_tri = 0;
 static box *Object_boxes = 0;
 static int Object_boxes_inited = 0;
-
+static tri* cuda_tris=0;
 double Object_mR[3][3];
 double Object_mT[3];
 double Object_ms;
@@ -57,12 +57,24 @@ Object::BeginModel()
   return 0;
 }
 
+__global__ void test_tris(tri * t){
+  printf("the p %f", t[0].p1);
+}
+
 int
 Object::EndModel()
 {
+  cudaMalloc(&cuda_tris, sizeof(tri)*num_tris);
+  cudaMemcpy(cuda_tris, tris, sizeof(tri)*num_tris, cudaMemcpyHostToDevice);
+  //test_tris<<<1,1>>>(cuda_tris);
+
   int myrc = build_hierarchy();
+
   return 0;
+  
+  
 }
+
 
 int
 Object::AddTri(const double *p1, const double *p2, const double *p3, int id)
@@ -107,6 +119,9 @@ Object::AddTri(const double *p1, const double *p2, const double *p3, int id)
   tris[num_tris].p3[2] = p3[2];
   tris[num_tris].id = id;
 
+ 
+  
+
   // update the counter
   num_tris++;
 
@@ -129,7 +144,7 @@ Object::build_hierarchy()
   accum M;
   
   double C[3][3];
-  
+  //num_tris = 16;
   Object_moment = new moment[num_tris]; 
 
   //every tris has its moment
@@ -179,7 +194,42 @@ reaccum_moments(accum &A, int *t, int n)
 }
 
 
+//  __global__ void split_cuda(double * all_box, int * t,){
+//     double c[3];
+    
+//     int j = blockIdx.x * blockDim.x + threadIdx.x;
+//     if (j >= N)
+//       return;
+//     int in = t[j];
+    
+//     tri *ptr = &all_tris[t[j]];
+//     cuda_MTxV(&all_box[j*9], pR, ptr->p1);
+//     cuda_MTxV(&all_box[j*9+3], pR, ptr->p2);
+//     cuda_MTxV(&all_box[j*9+6] , pR, ptr->p3);
+//     //printf("mean is %d, %f\n", t[j], cuda_moment[in].m[0]);
 
+
+    
+//     output[j] = (((pR[0]*c[0] + pR[3]*c[1] + pR[6]*c[2]) < axdmp) && ((N!=2)) || ((N==2) && (j==0)))? 1:0;
+
+     
+//   }
+
+
+  __global__ void split_cuda(double * all_box, int * t,tri* cuda_tris, int N , double * pR ){
+
+    
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+    if (j >= N)
+      return;
+    int in = t[j];
+    
+
+    //printf("ptr %f", ptr->p1[0]);
+    cuda_MTxV(&all_box[j*9], pR, cuda_tris[t[j]].p1);
+    cuda_MTxV(&all_box[j*9+3], pR, cuda_tris[t[j]].p2);
+    cuda_MTxV(&all_box[j*9+6] , pR, cuda_tris[t[j]].p3);
+  }
 int
 box::split_recurse(int *t, int n)
 {
@@ -205,6 +255,7 @@ box::split_recurse(int *t, int n)
   double C[3][3];
   double c[3];
   double minval[3], maxval[3];
+  
 
   int rc;   // for return code on procedure calls.
   int in;
@@ -224,26 +275,99 @@ box::split_recurse(int *t, int n)
   minval[0] = maxval[0] = c[0];
   minval[1] = maxval[1] = c[1];
   minval[2] = maxval[2] = c[2];
-  
   double *all_box = new double[9 * n];
+   double *cuda_box; 
+  //tri * cuda_tris;
+  int * cuda_key;
+  //double * cuda_moment;
+  double *cuda_pr;
+  cudaMalloc(&cuda_box, sizeof(double) * 9 * n);
+  //cudaMalloc(&cuda_moment, sizeof(double) * 13 * n);
+  cudaMalloc(&cuda_key, sizeof(int) * n);
+  cudaMalloc(&cuda_pr, sizeof(double) * 9);
+  // cudaMalloc(&cuda_tris, sizeof(tri) * n);
+  //  cudaMemcpy(cuda_tris, Object_tri, n * sizeof(tri), cudaMemcpyHostToDevice);
+  cudaMemcpy(cuda_key, t, sizeof(int) * n, cudaMemcpyHostToDevice);
+    double *check_pr = new double[9];
 
-  for (int j =0; j < n; j++){
-    in = t[j];
-    ptr = Object_tri + in;
-    MTxV(&all_box[j*3], pR, ptr->p1);
-    MTxV(&all_box[j*3+3], pR, ptr->p2);
-    MTxV(&all_box[j*3+6] , pR, ptr->p2);
+  
+  for (int i=0; i< 9;i++){
+    check_pr[i]=pR[i/3][i%3];
   }
+
+  cudaMemcpy(cuda_pr, check_pr, sizeof(double) * 9, cudaMemcpyHostToDevice);
+  
+  //cudaMalloc(&cuda_moment, sizeof(moment) * n);
+   // cudaMalloc(&output, sizeof(int) * n);
+
+
+
+  split_cuda<<<8,8>>>(cuda_box, cuda_key, cuda_tris, n, cuda_pr);
+cudaMemcpy(all_box, cuda_box, sizeof(double) * n *9, cudaMemcpyDeviceToHost);
+
+
+
   for (int j =0; j < 9*n; j+=1){
+    //std::cout <<j << ' '<< all_box[j]<<std::endl;
     minval[j%3] = std::min(minval[j%3], all_box[j]);
-    maxval[j%3] = std::max(minval[j%3], all_box[j]);
+    maxval[j%3] = std::max(maxval[j%3], all_box[j]);
   }
 
-  for (int j =0; j < n; j++){
-    in = t[j];
-    ptr = Object_tri + in;
-    mean_from_moment(c, Object_moment[in]);
-    if (((pR[0][0]*c[0] + pR[1][0]*c[1] + pR[2][0]*c[2]) < axdmp)
+
+ 
+
+  // for (int j =0; j < n; j++){
+  //   in = t[j];
+  //   ptr = Object_tri + in;
+  //   mean_from_moment(c, Object_moment[in]);
+  //   if (((pR[0][0]*c[0] + pR[1][0]*c[1] + pR[2][0]*c[2]) < axdmp)
+	//   && ((n!=2)) || ((n==2) && (j==0)))    
+	// {
+	//   // accumulate first and second order moments for group 1
+	//   accum_moment(M1, Object_moment[in]);
+
+	//   // put it in group 1 by swapping t[i] with t[n1]
+	//   int temp = t[j];
+	//   t[j] = t[n1];
+	//   t[n1] = temp;
+	//   n1++;
+	// }
+  //     else
+	// {
+	//   accum_moment(M2, Object_moment[in]);
+	// }
+  // }
+
+// for(i=0; i<n; i++)
+//     {
+//       in = t[i];
+//       ptr = Object_tri + in;
+      
+//       MTxV(c, pR, ptr->p1);
+//       minmax(minval[0], maxval[0], c[0]);
+//       minmax(minval[1], maxval[1], c[1]);
+//       minmax(minval[2], maxval[2], c[2]);
+
+//       MTxV(c, pR, ptr->p2);
+//       minmax(minval[0], maxval[0], c[0]);
+//       minmax(minval[1], maxval[1], c[1]);
+//       minmax(minval[2], maxval[2], c[2]);
+
+//       MTxV(c, pR, ptr->p3);
+//       minmax(minval[0], maxval[0], c[0]);
+//       minmax(minval[1], maxval[1], c[1]);
+//       minmax(minval[2], maxval[2], c[2]);
+
+//       // grab the mean point of the in'th triangle, project
+//       // it onto the splitting axis (1st column of pR) and
+//       // see where it lies with respect to axdmp.
+//     }
+      for(i=0; i<n; i++){
+        in = t[i];
+      ptr = Object_tri + in;
+      mean_from_moment(c, Object_moment[in]);
+      
+      if (((pR[0][0]*c[0] + pR[1][0]*c[1] + pR[2][0]*c[2]) < axdmp)
 	  && ((n!=2)) || ((n==2) && (i==0)))    
 	{
 	  // accumulate first and second order moments for group 1
@@ -257,12 +381,14 @@ box::split_recurse(int *t, int n)
 	}
       else
 	{
+	  // accumulate first and second order moments for group 2
 	  accum_moment(M2, Object_moment[in]);
+
+	  // leave it in group 2
+	  // do nothing...it happens by default
 	}
-  }
+    }
 
-
-  // done using this->pT as a mean point.
 
 
   // error check!
@@ -1142,7 +1268,7 @@ VCInternal::VCInternal(int mySize, int ss)
   state = VCstate_default;
   next_id = 0;
   screen_size = ss;
-  vc_objects = new VCObject*[mySize+20]; //allocate the array.
+  vc_objects = new VCObject*[mySize]; //allocate the array.
   size = mySize;
   cudaMalloc(&overlaps, sizeof(int) * mySize*mySize+2);
   

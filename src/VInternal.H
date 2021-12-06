@@ -194,6 +194,7 @@ public:
   // parent to box space: x_b = pR.T()*(x_m - pT)
   double pR[3][3];
   double pT[3];
+
   
   // dimensions
   double d[3];        // this is "radius", that is, 
@@ -230,7 +231,7 @@ public:
   int num_boxes_alloced;
 
   tri *tris;
-  tri *cuda_tris;
+  //tri *cuda_tris;
   int num_tris;
   int num_tris_alloced;
 

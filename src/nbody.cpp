@@ -6,7 +6,7 @@
 //#include "VCollide.H"
 using namespace std;
 
-const int NO_OF_OBJECTS=16;      //number of instances
+const int NO_OF_OBJECTS=20;      //number of instances
 const int SIMULATION_STEPS=100;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 int main(int argc, char *argv[])

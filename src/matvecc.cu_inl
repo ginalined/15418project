@@ -84,6 +84,19 @@
 
 
 __device__ __host__ __inline__ void
+cuda_MTxV(double Vr[3], double M1[9], double V1[3])
+{
+  Vr[0] = (M1[0] * V1[0] +
+	   M1[3] * V1[1] + 
+	   M1[6] * V1[2]); 
+  Vr[1] = (M1[1] * V1[0] +
+	   M1[4] * V1[1] + 
+	   M1[7] * V1[2]);
+  Vr[2] = (M1[2] * V1[0] +
+	   M1[5] * V1[1] + 
+	   M1[8] * V1[2]); 
+}
+__device__ __host__ __inline__ void
 Midentity(double M[3][3])
 {
   M[0][0] = M[1][1] = M[2][2] = 1.0;
