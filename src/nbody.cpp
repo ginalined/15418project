@@ -2,15 +2,21 @@
 #include <stdlib.h>
 #include "VInternal.H"
 #include <stdio.h>
-
+#include <time.h>  
+#include "CycleTimer.h"
 //#include "VCollide.H"
 using namespace std;
 
 const int NO_OF_OBJECTS=20;      //number of instances
-const int SIMULATION_STEPS=100;  //number of steps in the simulation.
+const int SIMULATION_STEPS=10;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 int main(int argc, char *argv[])
 {
+
+    double startTime = CycleTimer::currentSeconds();
+
+
+    
 
   if (argc != 3)
     {
@@ -23,6 +29,8 @@ int main(int argc, char *argv[])
   int id[NO_OF_OBJECTS+ 20];
   
   int i;
+
+  
   for (i=0; i<NO_OF_OBJECTS; i++)  //add the objects to the library.
   {
       //cout<<"Reading object "<<i<<"\n";
@@ -53,6 +61,8 @@ int main(int argc, char *argv[])
     }
 
   
+  time_t now;
+  time(&now);
   //vc.EndAllObjects();
   FILE *fp = fopen(argv[2], "r");
 
@@ -73,10 +83,13 @@ int main(int argc, char *argv[])
   vc.Collide();  
       
     
-    
-
     }
-    cout<<" Finish Detected collision between objects\n";
+ 
+  double endTime = CycleTimer::currentSeconds();
+  std::cout << endTime << ' '<< startTime << std::endl;
+  // double seconds = difftime(endtime, now);
+  // printf ("%.f running time\n", seconds);
+  // cout<<" Finish Detected collision between objects\n";
 
    
     return 0;

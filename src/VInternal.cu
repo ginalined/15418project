@@ -216,19 +216,44 @@ reaccum_moments(accum &A, int *t, int n)
 //   }
 
 
-  __global__ void split_cuda(double * all_box, int * t,tri* cuda_tris, int N , double * pR ){
+__device__ double atomicMin_double(double* address, double val)
+{
+    unsigned long long int* address_as_ull = (unsigned long long int*) address;
+    unsigned long long int old = *address_as_ull, assumed;
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_ull, assumed,
+            __double_as_longlong(fmin(val, __longlong_as_double(assumed))));
+    } while (assumed != old);
+    return __longlong_as_double(old);
+}
+  __global__ void split_cuda(double * all_box, int * t,tri* cuda_tris, int N , double * pR, double * minval){
 
     
     int j = blockIdx.x * blockDim.x + threadIdx.x;
     if (j >= N)
       return;
     int in = t[j];
-    
-
     //printf("ptr %f", ptr->p1[0]);
     cuda_MTxV(&all_box[j*9], pR, cuda_tris[t[j]].p1);
     cuda_MTxV(&all_box[j*9+3], pR, cuda_tris[t[j]].p2);
     cuda_MTxV(&all_box[j*9+6] , pR, cuda_tris[t[j]].p3);
+    double localMin[3];
+    for (int k =0; k < 3;k++){
+      localMin[k] = 1<<29;
+    } 
+     for (int k =0; k < 9; k+=1){
+      if (all_box[j*9+k%3] <  localMin[k%3]){
+       localMin[k%3] = all_box[j*9+k%3]*10 ;
+      }
+  }
+  // for (int k =0; k < 3;k++){
+  //     atomicMin_double(&minval[k],localMin[k]);
+  // }
+    for (int k =0; k < 9; k+=1){
+      atomicMin_double(&minval[k%3], all_box[j*9 + k %3]*10);
+    
+  }
   }
 int
 box::split_recurse(int *t, int n)
@@ -281,9 +306,11 @@ box::split_recurse(int *t, int n)
   int * cuda_key;
   //double * cuda_moment;
   double *cuda_pr;
+  double * cuda_min;
   cudaMalloc(&cuda_box, sizeof(double) * 9 * n);
   //cudaMalloc(&cuda_moment, sizeof(double) * 13 * n);
   cudaMalloc(&cuda_key, sizeof(int) * n);
+  cudaMalloc(&cuda_min, sizeof(double)*3);
   cudaMalloc(&cuda_pr, sizeof(double) * 9);
   // cudaMalloc(&cuda_tris, sizeof(tri) * n);
   //  cudaMemcpy(cuda_tris, Object_tri, n * sizeof(tri), cudaMemcpyHostToDevice);
@@ -294,27 +321,33 @@ box::split_recurse(int *t, int n)
   for (int i=0; i< 9;i++){
     check_pr[i]=pR[i/3][i%3];
   }
+    for (int i=0; i< 3;i++){
+    minval[i] = minval[i]*10;
+  }
 
   cudaMemcpy(cuda_pr, check_pr, sizeof(double) * 9, cudaMemcpyHostToDevice);
+  cudaMemcpy(cuda_min, minval, sizeof(double)*3, cudaMemcpyHostToDevice);
   
   //cudaMalloc(&cuda_moment, sizeof(moment) * n);
    // cudaMalloc(&output, sizeof(int) * n);
 
+double checkMin[3];
+  split_cuda<<<8,8>>>(cuda_box, cuda_key, cuda_tris, n, cuda_pr, cuda_min);
+  cudaMemcpy(all_box, cuda_box, sizeof(double) * n *9, cudaMemcpyDeviceToHost);
+  cudaMemcpy(checkMin, cuda_min, sizeof(double) * 3, cudaMemcpyDeviceToHost);
 
-
-  split_cuda<<<8,8>>>(cuda_box, cuda_key, cuda_tris, n, cuda_pr);
-cudaMemcpy(all_box, cuda_box, sizeof(double) * n *9, cudaMemcpyDeviceToHost);
+ for (int k = 0;k < 3;k++){
+  printf("check difference %f, and %f \n", minval[0], checkMin[0]);
+}
 
 
 
   for (int j =0; j < 9*n; j+=1){
-    //std::cout <<j << ' '<< all_box[j]<<std::endl;
-    minval[j%3] = std::min(minval[j%3], all_box[j]);
-    maxval[j%3] = std::max(maxval[j%3], all_box[j]);
+    minval[j%3] = std::min(minval[j%3], all_box[j]*10);
+    maxval[j%3] = std::max(maxval[j%3], all_box[j]*10);
   }
 
 
- 
 
   // for (int j =0; j < n; j++){
   //   in = t[j];
