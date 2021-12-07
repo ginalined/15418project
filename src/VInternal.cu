@@ -1158,7 +1158,7 @@ __global__ void MergeSort(AABB *input, int N, AABB *output, int total,
     } else if (k >= end) {
       output[i] = input[j];
       j++;
-    } else if (input[j].center[dim] <= input[k].center[dim]) {
+    } else if (input[j].lo.val[dim] <= input[k].lo.val[dim]) {
       output[i] = input[j];
       j++;
     } else {
@@ -1182,13 +1182,20 @@ __global__ void findOverlap(AABB *input, int batchSize, int *overlap, int total,
   int endIndex = batchSize * (index + 1);
   for (int i = startIndex; i < endIndex; i++) {
     for (int j = i + 1; j < total; j++) {
-
+      
       if (input[i].hi.val[dim] < input[j].lo.val[dim])
         break;
-      //printf("index is %d, %d, %d\n", input[i].id ,input[j].id, input[i].id *total + input[j].id);
-      overlap[input[i].id * total + input[j].id] = 1;
-
+        overlap[input[i].id * total + input[j].id] = 1;
+      //printf("index is %d, %d, %d\n", input[i].id ,input[j].id, input[i].id *total + input[j].id); 
     }
+
+    for (int j = i - 1; j >=0; j--) {
+      
+      if (input[i].lo.val[dim] > input[j].hi.val[dim])
+        break;
+        overlap[input[j].id * total + input[i].id] = 1;
+    }
+
   }
 }
 
@@ -1202,23 +1209,39 @@ int sort_AABB(AABB *res, int N, int *overlap) {
   cudaMalloc(&output, sizeof(AABB) * N);
   // get_info(res);
 
-  for (int dim = 0; dim < 1; dim++) {
+  for (int dim = 0; dim < 3; dim++) {
     while (sort_block <= N) {
       MergeSort<<<32, 32>>>(res, sort_block, output, N, dim);
       cudaDeviceSynchronize();
       sort_block *= 2;
     }
-    // get_info(output);
+    //get_info(output);
+    // int* dev = new int[1024];
+  
+    // cudaMemcpy(dev, overlap, sizeof(int)*1024, cudaMemcpyDeviceToHost);
+    // for (int i = 0; i < 1024;i++){
+    //   printf("%d ", dev[i]);
+    // }
+    AABB* dev = new AABB[32];
+  
+    cudaMemcpy(dev, res, sizeof(AABB)*32, cudaMemcpyDeviceToHost);
+    // for (int i = 0; i < 32;i++){
+    //   printf("%f %d, \n", dev[i].lo.val[dim], dev[i].id);
+    // }
+    // printf("\n\n");
 
     findOverlap<<<32, 32>>>(res, 1, overlap, N, dim);
     // get_info(res);
     cudaDeviceSynchronize();
 
-    int value = find_peaks(32*32, overlap);
-    return value;
-    //get_info1(overlap);
+    //printf("\n");
+    
     //printf("shall print something %d\n", value);
   }
+  int value = find_peaks(32*32, overlap);
+
+  //get_info1(overlap);
+  return value;
 }
 
 inline double GT(double a, double b) { return (((a) > (b)) ? (a) : (b)); }
@@ -1403,7 +1426,7 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
 
   for (int j = 0; j < total; j++) {
     VCObject *current = vc_objects[id[j]];
-    memcpy((void *)current->trans, (void *)(&trans[16 * j]),
+    memcpy((void *)current->trans, (void *)(&trans[16 * id[j]]),
            16 * sizeof(double));
   }
   double *temp;
@@ -1415,11 +1438,12 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
   cudaDeviceSynchronize();
 
   // EndAllObjects();
-  cudaMemset(overlaps, 0, size * size + 2);
+  
+  cudaMemset(overlaps, 0, (size*size)*sizeof(int));
   // printf("size is %d", size);
   
   overlap_count = sort_AABB(cuda_boxes, size, overlaps);
-
+  
   // cuda_get_collision<<<32, 32>>>(&total, cuda_nbody);
   // cudaDeviceSynchronize();
   return 0;
@@ -1434,11 +1458,16 @@ int VCInternal::Collide(void) // perform collision detection.
   // std::cout<< nbody.overlapping_pairs.size<< std::endl;
   int* dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int)*overlap_count, cudaMemcpyDeviceToHost);
-
+  //printf("overlapCount %d \n", overlap_count);
   for(int k = 0; k< overlap_count;k++){
+
+    // for(int i = 0; i< 32;i++){
+    //   for(int j = i+1; j< 32;j++){
       int val = dev[k];
       int i = val/size;
       int j = val%size;
+      if (i==j)
+        continue;
       double R1[3][3], T1[3], R2[3][3], T2[3];
       for (int index = 0; index < 9; index++) {
         int x = index / 3;
@@ -1458,8 +1487,8 @@ int VCInternal::Collide(void) // perform collision detection.
 
       if (Object_num_contacts != 0) {
         printf("collision between object %d, and object %d!\n", i, j);
-      }
-    }
+      
+    }}
   
   return 0;
 }

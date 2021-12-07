@@ -141,6 +141,7 @@ class VCInternal
   int temp_index; 
   int screen_size;
   int overlap_count;
+  double * cuda_trans;
 
   
 public:

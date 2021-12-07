@@ -8,7 +8,7 @@
 using namespace std;
 
 const int NO_OF_OBJECTS=32;      //number of instances
-const int SIMULATION_STEPS=1;  //number of steps in the simulation.
+const int SIMULATION_STEPS=5;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 int main(int argc, char *argv[])
 {
