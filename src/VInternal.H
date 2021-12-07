@@ -140,6 +140,8 @@ class VCInternal
 
   int temp_index; 
   int screen_size;
+  int overlap_count;
+  double * cuda_trans;
 
   
 public:
@@ -156,6 +158,7 @@ public:
    int UpdateAllTrans(int id[], int total, double * trans);
   void AddObject(int id, Object *b);
   int EndAllObjects(void); 
+  int all_Collide(void);
                           //update the transformation matrix of
                           //the object.
   int ActivateObject(int id);       //activate for collision detection.
