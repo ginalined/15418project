@@ -26,7 +26,7 @@ int Object_num_contacts = 0;
 
 int Object_num_cols_alloced = 0;
 collision_pair *Object_contact = 0;
-
+int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
 
 Object::Object() {
@@ -212,7 +212,7 @@ __global__ void split_cuda(double *all_box, int *t, tri *cuda_tris, int N,
       all_box[j * 9 + k] = temp;
     }
   }
-  for (int k = 0; k < 3; k += 1) {
+  for (int k = 3; k < 6; k += 1) {
     if (all_box[j * 9 + 3 + k] < all_box[j * 9 + k]) {
       all_box[j * 9 + 3 + k] = all_box[j * 9 + k];
     }
@@ -1211,7 +1211,7 @@ int sort_AABB(AABB *res, int N, int *overlap) {
 
   for (int dim = 0; dim < 3; dim++) {
     while (sort_block <= N) {
-      MergeSort<<<32, 32>>>(res, sort_block, output, N, dim);
+      MergeSort<<<BLOCK_SIZE, (N/BLOCK_SIZE)+1>>>(res, sort_block, output, N, dim);
       cudaDeviceSynchronize();
       sort_block *= 2;
     }
@@ -1230,7 +1230,7 @@ int sort_AABB(AABB *res, int N, int *overlap) {
     // }
     // printf("\n\n");
 
-    findOverlap<<<32, 32>>>(res, 1, overlap, N, dim);
+    findOverlap<<<BLOCK_SIZE, (N/BLOCK_SIZE)+1>>>(res, 1, overlap, N, dim);
     // get_info(res);
     cudaDeviceSynchronize();
 
@@ -1434,7 +1434,7 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
 
   cudaMemcpy(temp, trans, sizeof(double) * total * 17, cudaMemcpyHostToDevice);
 
-  cuda_update_trans<<<32, 32>>>(total, temp, cuda_boxes);
+  cuda_update_trans<<<BLOCK_SIZE, (total/BLOCK_SIZE)+1>>>(total, temp, cuda_boxes);
   cudaDeviceSynchronize();
 
   // EndAllObjects();
@@ -1449,7 +1449,43 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
   return 0;
 }
 
-int VCInternal::all_Collide(void) { return 1; }
+int VCInternal::all_Collide(void) {  // perform collision detection.
+  
+  // std::cout<< nbody.overlapping_pairs.size<< std::endl;
+  int* dev = new int[overlap_count];
+  cudaMemcpy(dev, overlaps, sizeof(int)*overlap_count, cudaMemcpyDeviceToHost);
+
+  
+  for(int k = 0; k< overlap_count;k++){
+      
+      int val = dev[k];
+      int i = val/size;
+      int j = val%size;
+      double R1[3][3], T1[3], R2[3][3], T2[3];
+      for (int index = 0; index < 9; index++) {
+        int x = index / 3;
+        int y = index % 3;
+        R1[x][y] = vc_objects[i]->trans[x * 4 + y];
+        R2[x][y] = vc_objects[i]->trans[x * 4 + y];
+      }
+
+      for (int index = 0; index < 3; index++) {
+        T1[index] = vc_objects[i]->trans[index * 4 + 3];
+        T2[index] = vc_objects[j]->trans[index * 4 + 3];
+      }
+
+      // call the RAPID collision detection routine.
+      ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b,
+                FIRST_CONTACT);
+
+      if (Object_num_contacts != 0) {
+        printf("collision between object %d, and object %d!\n", i, j);
+      }
+    }
+  
+  return 0;
+} 
+
 
 int VCInternal::Collide(void) // perform collision detection.
 {
