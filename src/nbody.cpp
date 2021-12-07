@@ -7,8 +7,8 @@
 //#include "VCollide.H"
 using namespace std;
 
-const int NO_OF_OBJECTS=20;      //number of instances
-const int SIMULATION_STEPS=10;  //number of steps in the simulation.
+const int NO_OF_OBJECTS=32;      //number of instances
+const int SIMULATION_STEPS=1;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 int main(int argc, char *argv[])
 {
@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
   
   int num_tri;
   VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
-  int id[NO_OF_OBJECTS+ 20];
+  int id[NO_OF_OBJECTS];
   
   int i;
 
@@ -61,8 +61,7 @@ int main(int argc, char *argv[])
     }
 
   
-  time_t now;
-  time(&now);
+
   //vc.EndAllObjects();
   FILE *fp = fopen(argv[2], "r");
 
