@@ -1495,13 +1495,13 @@ int VCInternal::Collide(void) // perform collision detection.
   int* dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int)*overlap_count, cudaMemcpyDeviceToHost);
   //printf("overlapCount %d \n", overlap_count);
-  for(int k = 0; k< overlap_count;k++){
+  //for(int k = 0; k< overlap_count;k++){
 
-    // for(int i = 0; i< 32;i++){
-    //   for(int j = i+1; j< 32;j++){
-      int val = dev[k];
-      int i = val/size;
-      int j = val%size;
+     for(int i = 0; i< 2;i++){
+       for(int j = i+1; j< 2;j++){
+      // int val = dev[k];
+      // int i = val/size;
+      // int j = val%size;
       if (i==j)
         continue;
       double R1[3][3], T1[3], R2[3][3], T2[3];
@@ -1524,7 +1524,7 @@ int VCInternal::Collide(void) // perform collision detection.
       if (Object_num_contacts != 0) {
         printf("collision between object %d, and object %d!\n", i, j);
       
-    }}
-  
+    }}}
+    
   return 0;
 }

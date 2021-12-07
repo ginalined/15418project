@@ -117,7 +117,7 @@ extern int Object_first_contact;
 extern  int Object_num_box_tests;
 extern  int Object_num_tri_tests;
 extern  int Object_num_contacts;
-extern  struct collision_pair *Object_contact;
+struct collision_pair *Object_contact;
 
 #endif
 
