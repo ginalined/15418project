@@ -72,7 +72,9 @@ Description: This file declares three classes - VCReportType,
 #define VINTERNAL_H
 
 #include "NBody.H"
-
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <driver_functions.h>
 //state in which VCollide is:
 const int VCstate_default   = 0; //default state
 const int VCstate_newObject = 1; //a new object has been created but its
@@ -191,26 +193,25 @@ struct tri
 class box
 {
 public:
-
   // placement in parent's space
   // box to parent space: x_m = pR*x_b + pT
   // parent to box space: x_b = pR.T()*(x_m - pT)
   double pR[3][3];
   double pT[3];
-
-  
   // dimensions
   double d[3];        // this is "radius", that is, 
                       // half the measure of a side length
 
   box *P;  // points to but does not "own".  
   box *N;
+  int prev_index;
+  int next_index;
 
   tri *trp;
 
-  int leaf() { return (!P && !N); } 
-  double size() { return d[0]; } 
-
+   __host__ __device__ int leaf() { return (!P && !N); } 
+  __device__ __host__ double size() { return d[0]; } 
+ 
   int split_recurse(int *t, int n);
   int split_recurse(int *t);               // specialized for leaf nodes
 };
