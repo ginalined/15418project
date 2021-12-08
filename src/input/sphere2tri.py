@@ -3,7 +3,7 @@ import math
 
 PI = 3.14159
 THRESHOLD = 0.0001
-SLICE = 1
+SLICE = 2
 STACK = 4
 
 def my_round(f):
@@ -155,12 +155,12 @@ for line in lines:
     # process to find all triangles for each sphere
     point_list = sphere_to_point(org, rad, SLICE, STACK)
     triangle_list = point_to_triangle(point_list, [org[0], org[1], org[2] + rad], org[2])
-    tri_count += len(triangle_list)     # triangle count for one sphere
+    tri_count = len(triangle_list)     # triangle count for one sphere
     obj_buffer.append(triangle_list)
 
 # write to create inp file
 op = open("triangle.inp", "w")
-op.write(str(STACK * SLICE * 2))
+op.write(str(tri_count))
 op.write('\n\n')
 
 for obj in obj_buffer:
