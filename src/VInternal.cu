@@ -20,21 +20,18 @@ double Object_mR[3][3];
 double Object_mT[3];
 double Object_ms;
 
-
-int Object_num_cols_alloced = 0;
-
-
 __device__ double cuda_mR[3][3];
 __device__ double cuda_mT[3];
-__device__ double cuda_ms;
-__device__ int cuda_first_contact;
-__device__ int cuda_num_contacts = 0;
-__device__ int cuda_num_cols_alloced = 0;
-
-
 
 int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
+
+struct box_container {
+  double R[3][3]; 
+  double T[3];
+  box *b;
+} ;
+
 
 Object::Object() {
   b = 0;
@@ -205,35 +202,13 @@ __global__ void split_cuda(double *all_box, int *t, tri *cuda_tris, int N,
       all_box[j * 9 + 3 + k] = all_box[j * 9 + k];
     }
   }
-
-  // printf("j is %d, %d, %d\n", j, blockIdx.x , blockDim.x);
-  // __syncthreads();
-  // if (threadIdx.x == 0){
-  //   all_box[j*9+6]
-  // for (int k = 0; k < 24; k++){
-  //   if (temp[k%3] > temp[k]){
-  //     temp[k%3] = temp[k];
-  //   }
-  // }
 }
 
 int box::split_recurse(int *t, int n) {
-  // The orientation for the parent box is already assigned to this->pR.
-  // The axis along which to split will be column 0 of this->pR.
-  // The mean point is passed in on this->pT.
-
-  // When this routine completes, the position and orientation in model
-  // space will be established, as well as its dimensions.  Child boxes
-  // will be constructed and placed in the parent's CS.
 
   if (n == 1) {
     return split_recurse(t);
   }
-
-  // walk along the tris for the box, and do the following:
-  //   1. collect the max and min of the vertices along the axes of <or>.
-  //   2. decide which group the triangle goes in, performing appropriate swap.
-  //   3. accumulate the mean point and covariance data for that triangle.
 
   accum M1, M2;
   double C[3][3];
@@ -270,9 +245,6 @@ int box::split_recurse(int *t, int n) {
   cudaMalloc(&cuda_key, sizeof(int) * n);
   cudaMalloc(&cuda_min, sizeof(double) * 3);
   cudaMalloc(&cuda_pr, sizeof(double) * 9);
-  // cudaMalloc(&cuda_tris, sizeof(tri) * n);
-  //  cudaMemcpy(cuda_tris, Object_tri, n * sizeof(tri),
-  //  cudaMemcpyHostToDevice);
   cudaMemcpy(cuda_key, t, sizeof(int) * n, cudaMemcpyHostToDevice);
   double *check_pr = new double[9];
 
@@ -324,17 +296,11 @@ int box::split_recurse(int *t, int n) {
     } else {
       // accumulate first and second order moments for group 2
       accum_moment(M2, Object_moment[in]);
-
-      // leave it in group 2
-      // do nothing...it happens by default
     }
   }
 
   // error check!
   if ((n1 == 0) || (n1 == n)) {
-    // our partitioning has failed: all the triangles fell into just
-    // one of the groups.  So, we arbitrarily partition them into
-    // equal parts, and proceed.
 
     n1 = n / 2;
 
@@ -521,11 +487,6 @@ int box::split_recurse(int *t) {
 }
 
 int tri_contact(box *b1, box *b2) {
-  // assume just one triangle in each box.
-
-  // the vertices of the tri in b2 is in model1 C.S.  The vertices of
-  // the other triangle is in model2 CS.  Use Object_mR, Object_mT, and
-  // Object_ms to transform into model2 CS.
 
   double i1[3];
   double i2[3];
@@ -535,8 +496,6 @@ int tri_contact(box *b1, box *b2) {
   sMxVpV(i1, Object_ms, Object_mR, b1->trp->p1, Object_mT);
   sMxVpV(i2, Object_ms, Object_mR, b1->trp->p2, Object_mT);
   sMxVpV(i3, Object_ms, Object_mR, b1->trp->p3, Object_mT);
-
-
 
   int f = tri_contact(i1, i2, i3, b2->trp->p1, b2->trp->p2, b2->trp->p3);
 
@@ -554,56 +513,30 @@ __device__ int cuda_tri_contact(box *b1, box *b2) {
   double i3[3];
   int rc; // return code
 
-  sMxVpV(i1, cuda_ms, cuda_mR, b1->trp->p1, cuda_mT);
-  sMxVpV(i2, cuda_ms, cuda_mR, b1->trp->p2, cuda_mT);
-  sMxVpV(i3, cuda_ms, cuda_mR, b1->trp->p3, cuda_mT);
+  sMxVpV(i1, 1.0, cuda_mR, b1->trp->p1, cuda_mT);
+  sMxVpV(i2, 1.0, cuda_mR, b1->trp->p2, cuda_mT);
+  sMxVpV(i3, 1.0, cuda_mR, b1->trp->p3, cuda_mT);
 
-
-
-  int f = tri_contact(i1, i2, i3, b2->trp->p1, b2->trp->p2, b2->trp->p3);
-
-  if (f) {
-    printf("hello, I see a collision! \n");
-  }
-
-  return 0;
+  return tri_contact(i1, i2, i3, b2->trp->p1, b2->trp->p2, b2->trp->p3);
 }
 
-int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s, int * collisions, int i, int j) {
-  double d[3]; // temp storage for scaled dimensions of box b2.
-  int rc;      // return codes
+int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
+                      int *collisions, int i, int j) {
 
-  if ( collisions[i*32+j])
+
+  if (collisions[i * 32 + j])
     return 0;
 
-  // test top level
+  if (obb_disjoint(R, T, b1->d, b2->d))
+          return 0;
 
 
 
-  int f1;
-
-  d[0] = s * b2->d[0];
-  d[1] = s * b2->d[1];
-  d[2] = s * b2->d[2];
-  f1 = obb_disjoint(R, T, b1->d, d);
-
-  if (f1 != 0) {
-    return 0; // stop processing this test, go to top of loop
-  }
-
-  // contact between boxes
-  
   if (b1->leaf() && b2->leaf()) {
-    
-    // it is a leaf pair - compare the polygons therein
-    // tri_contact uses the model-to-model transforms stored in
-    // Object_mR, Object_mT, Object_ms.
 
-    // this will pass along any OUT_OF_MEMORY return codes which
-    // may be generated.
-    int code =  tri_contact(b1, b2);
+    int code = tri_contact(b1, b2);
     if (code)
-      collisions[i*32+j] = 1;
+      collisions[i * 32 + j] = 1;
 
     return 0;
   }
@@ -612,59 +545,40 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s, i
 
   double cR[3][3], cT[3], cs;
 
-  // Currently, the transform from model 2 to model 1 space is
-  // given by [B T s], where y = [B T s].x = s.B.x + T.
 
   if (b2->leaf() || (!b1->leaf() && (b1->size() > b2->size()))) {
-    // here we descend to children of b1.  The transform from
-    // a child of b1 to b1 is stored in [b1->N->pR,b1->N->pT],
-    // but we will denote it [B1 T1 1] for short.  Notice that
-    // children boxes always have same scaling as parent, so s=1
-    // for such nested transforms.
 
-    // Here, we compute [B1 T1 1]'[B T s] = [B1'B B1'(T-T1) s]
-    // for each child, and store the transform into the collision
-    // test queue.
     box *b1_next = &Object_boxes[b1->next_index];
     box *b1_prev = &Object_boxes[b1->prev_index];
     MTxM(cR, b1_next->pR, R);
     VmV(U, T, b1_next->pT);
     MTxV(cT, b1_next->pR, U);
-    cs = s;
 
-    if ((rc = collide_recursive(b1_next, b2, cR, cT, cs, collisions,i,j)) != 0)
-      return rc;
+    collide_recursive(b1_next, b2, cR, cT, 1.0, collisions, i, j);
+
 
     MTxM(cR, b1_prev->pR, R);
     VmV(U, T, b1_prev->pT);
     MTxV(cT, b1_prev->pR, U);
-    cs = s;
 
-    if ((rc = collide_recursive(b1_prev, b2, cR, cT, cs,collisions,i,j)) != 0)
-      return rc;
+   collide_recursive(b1_prev, b2, cR, cT, 1.0, collisions, i, j);
 
-    return 0;
   } else {
-    // here we descend to the children of b2.  See comments for
-    // other 'if' clause for explanation.
+
     box *b2_next = &Object_boxes[b2->next_index];
     box *b2_prev = &Object_boxes[b2->prev_index];
 
     MxM(cR, R, b2_next->pR);
     sMxVpV(cT, s, R, b2_next->pT, T);
-    cs = s;
 
-    if ((rc = collide_recursive(b1, b2_next, cR, cT, cs,collisions,i,j)) != 0)
-      return rc;
+    collide_recursive(b1, b2_next, cR, cT, 1.0, collisions, i, j);
+
 
     MxM(cR, R, b2_prev->pR);
     sMxVpV(cT, s, R, b2_prev->pT, T);
-    cs = s;
 
-    if ((rc = collide_recursive(b1, b2_prev, cR, cT, cs, collisions,i,j)) != 0)
-      return rc;
+    collide_recursive(b1, b2_prev, cR, cT, 1.0, collisions, i, j);
 
-    return 0;
   }
 
   return 0;
@@ -673,94 +587,81 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s, i
 
 
 __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
-                                      double T[3], double s) {
-  double d[3]; // temp storage for scaled dimensions of box b2.
-  int rc;      // return codes
-
-  if ( cuda_num_contacts > 0)
-    return 0;
-
-  // test top level
-
-  int f1;
-
-  d[0] = s * b2->d[0];
-  d[1] = s * b2->d[1];
-  d[2] = s * b2->d[2];
-  f1 = obb_disjoint(R, T, b1->d, d);
-
-  if (f1 != 0) {
-    return 0; // stop processing this test, go to top of loop
-  }
-
-  // contact between boxes
-  if (b1->leaf() && b2->leaf()) {
-    // it is a leaf pair - compare the polygons therein
-    // tri_contact uses the model-to-model transforms stored in
-    // Object_mR, Object_mT, Object_ms.
-
-    // this will pass along any OUT_OF_MEMORY return codes which
-    // may be generated.
-    return cuda_tri_contact(b1, b2);
-  }
+                                        double T[3], double s,
+                                        int *collision_set, int i, int j,
+                                        int size, box *b10, box *b20) {
 
   double U[3];
 
   double cR[3][3], cT[3], cs;
+  box_container container1[71];
+  box_container container2[71];
+  // container1[0].R = R;
+  // container1[0].T = T;
+  // container2[0].R = R;
+  // container2[0].T = T;
+  // container1->b = b1;
+  // container2->b = b2;
+  int index1 = 0;
+  int index2 = 0;
+  int alloc;
+  int used;
+  //cudaMemcpy2DArrayToArray(container1[0].R, 0,0,R, 0,0,3*sizeof(double),3*sizeof(double));
+  while (1) {
+    box_container cc1 = container1[index1];
+    box_container cc2 = container2[index2];
+    if (obb_disjoint(R, T, cc1.b->d, cc2.b->d) != 0) {
+      used++;
+      continue;
+    }
 
-  // Currently, the transform from model 2 to model 1 space is
-  // given by [B T s], where y = [B T s].x = s.B.x + T.
+    if (cc1.b->leaf() && cc2.b->leaf()) {
 
-  if (b2->leaf() || (!b1->leaf() && (b1->size() > b2->size()))) {
-    // here we descend to children of b1.  The transform from
-    // a child of b1 to b1 is stored in [b1->N->pR,b1->N->pT],
-    // but we will denote it [B1 T1 1] for short.  Notice that
-    // children boxes always have same scaling as parent, so s=1
-    // for such nested transforms.
+      if (cuda_tri_contact(cc1.b, cc2.b)) {
+        collision_set[i * size + j] = 1;
+        break;
+      }
+    }
 
-    // Here, we compute [B1 T1 1]'[B T s] = [B1'B B1'(T-T1) s]
-    // for each child, and store the transform into the collision
-    // test queue.
-    box *b1_next = &cuda_object_box[b1->next_index];
-    box *b1_prev = &cuda_object_box[b1->prev_index];
-    MTxM(cR, b1_next->pR, R);
-    VmV(U, T, b1_next->pT);
-    MTxV(cT, b1_next->pR, U);
-    cs = s;
+    if (cc2.b->leaf() || (!cc1.b->leaf() && (cc1.b->size() > cc2.b->size()))) {
 
-    if ((rc = cuda_collide_recursive(b1_next, b2, cR, cT, cs)) != 0)
-      return rc;
+      box *b1_next = &b10[cc1.b->next_index];
+      box *b1_prev = &b10[cc1.b->prev_index];
+      MTxM(cR, b1_next->pR, R);
+      VmV(U, T, b1_next->pT);
+      MTxV(cT, b1_next->pR, U);
 
-    MTxM(cR, b1_prev->pR, R);
-    VmV(U, T, b1_prev->pT);
-    MTxV(cT, b1_prev->pR, U);
-    cs = s;
+      cuda_collide_recursive(b1_next, b2, cR, cT, 1.0, collision_set, i, j,
+                             size, b10, b20);
 
-    if ((rc = cuda_collide_recursive(b1_prev, b2, cR, cT, cs)) != 0)
-      return rc;
+      MTxM(cR, b1_prev->pR, R);
+      VmV(U, T, b1_prev->pT);
+      MTxV(cT, b1_prev->pR, U);
 
-    return 0;
-  } else {
-    // here we descend to the children of b2.  See comments for
-    // other 'if' clause for explanation.
-    box *b2_next = &cuda_object_box[b2->next_index];
-    box *b2_prev = &cuda_object_box[b2->prev_index];
+      cuda_collide_recursive(b1_prev, b2, cR, cT, 1.0, collision_set, i, j,
+                             size, b10, b20);
 
-    MxM(cR, R, b2_next->pR);
-    sMxVpV(cT, s, R, b2_next->pT, T);
-    cs = s;
+    } else {
+      printf("here 3 %d\n", b2->prev_index);
+      // here we descend to the children of b2.  See comments for
+      // other 'if' clause for explanation.
 
-    if ((rc = cuda_collide_recursive(b1, b2_next, cR, cT, cs)) != 0)
-      return rc;
+      box *b2_next = &b20[b2->next_index];
+      box *b2_prev = &b20[b2->prev_index];
 
-    MxM(cR, R, b2_prev->pR);
-    sMxVpV(cT, s, R, b2_prev->pT, T);
-    cs = s;
+      MxM(cR, R, b2_next->pR);
+      sMxVpV(cT, s, R, b2_next->pT, T);
+      cs = s;
 
-    if ((rc = cuda_collide_recursive(b1, b2_prev, cR, cT, cs)) != 0)
-      return rc;
+      cuda_collide_recursive(b1, b2_next, cR, cT, cs, collision_set, i, j, size,
+                             b10, b20);
+      MxM(cR, R, b2_prev->pR);
+      sMxVpV(cT, s, R, b2_prev->pT, T);
+      cs = s;
 
-    return 0;
+      cuda_collide_recursive(b1, b2_prev, cR, cT, cs, collision_set, i, j, size,
+                             b10, b20);
+    }
   }
 
   return 0;
@@ -774,7 +675,7 @@ int Collide(double R1[3][3], double T1[3], Object *Object_model1,
   box *b2 = Object_model2->b;
 
   int s1 = 1.0;
-  int s2 = 1.0;    
+  int s2 = 1.0;
 
   double tR1[3][3], tR2[3][3], R[3][3];
   double tT1[3], tT2[3], T[3], U[3];
@@ -809,11 +710,9 @@ int Collide(double R1[3][3], double T1[3], Object *Object_model1,
     Object_ms = s1 / s2;
   }
 
-
   // make the call
-  return collide_recursive(b1, b2, R, T, s, collision,i,j);
+  return collide_recursive(b1, b2, R, T, s, collision, i, j);
 }
-
 
 __global__ void MergeSort(AABB *input, int N, AABB *output, int total,
                           int dim) {
@@ -1026,24 +925,24 @@ int VCInternal::AddTri(double v1[], double v2[], double v3[]) {
   return 0;
 }
 
-
-
 // 1. add current object to n body
 // 2. have RAPID build the OBB tree.
 // 3. initialize trans
 int VCInternal::EndObject(void) {
 
   vc_objects[current_id]->b->EndModel();
-  
 
-  //cudaMalloc(&vc_objects[current_id]->cuda_store_box, sizeof(box) * Object_boxes_inited);
-  // cudaMemcpy(vc_objects[current_id]->cuda_store_box, Object_boxes, sizeof(box) * Object_boxes_inited,
+  // cudaMalloc(&vc_objects[current_id]->cuda_store_box, sizeof(box) *
+  // Object_boxes_inited);
+  // cudaMemcpy(vc_objects[current_id]->cuda_store_box, Object_boxes,
+  // sizeof(box) * Object_boxes_inited,
   //            cudaMemcpyHostToDevice);
 
   AddObject(current_id, vc_objects[current_id]->b);
-  vc_objects[current_id]->cuda_store_box = (box*) malloc(sizeof(box) * Object_boxes_inited);
-  memcpy(vc_objects[current_id]->cuda_store_box, Object_boxes, sizeof(box) * Object_boxes_inited);
-  
+  vc_objects[current_id]->cuda_store_box =
+      (box *)malloc(sizeof(box) * Object_boxes_inited);
+  memcpy(vc_objects[current_id]->cuda_store_box, Object_boxes,
+         sizeof(box) * Object_boxes_inited);
 
   memset(((void *)vc_objects[current_id]->trans), 0, 16 * sizeof(double));
   vc_objects[current_id]->trans[0] = 1.0;
@@ -1131,11 +1030,11 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
 }
 
 __device__ void cuda_Collide_test(double R1[3][3], double T1[3], box *b1,
-                                  double R2[3][3], double T2[3], box *b2) {
+                                  double R2[3][3], double T2[3], box *b2,
+                                  int *collision_set, int i, int j, int size) {
 
-
-  double s1 = 0;
-  double s2 = 0;
+  double s1 = 1;
+  double s2 = 1;
   double tR1[3][3], tR2[3][3], R[3][3];
   double tT1[3], tT2[3], T[3], U[3];
   double s;
@@ -1144,35 +1043,33 @@ __device__ void cuda_Collide_test(double R1[3][3], double T1[3], box *b1,
   sMxVpV(tT1, s1, R1, b1->pT, T1); // tT1 = s1 * R1 * b1->pT + T1;
   MxM(tR2, R2, b2->pR);            // tR2 = R2 * b2->pR;
   sMxVpV(tT2, s2, R2, b2->pT, T2); // tT2 = s2 * R2 * b2->pT + T2;
+  // printf("check1, check2 %f,%f", b1->pT[0], b2->pT[0]);
 
   MTxM(R, tR1, tR2); // R = tR1.T()*tR2;
   VmV(U, tT2, tT1);
   sMTxV(T, 1.0 / s1, tR1, U); // T = tR1.T()*(tT2-tT1)/s1;
-  
+
   s = s2 / s1;
 
   {
     MTxM(cuda_mR, R2, R1);
     VmV(U, T1, T2);
     sMTxV(cuda_mT, 1.0 / s2, R2, U);
-    cuda_ms = s1 / s2;
   }
 
-
-  cuda_num_contacts = 0;
-  
-  // make the call
-  cuda_collide_recursive(b1, b2, R, T, s);
+  cuda_collide_recursive(b1, b2, R, T, 1.0, collision_set, i, j, size, b1, b2);
 }
 
-__global__ void cuda_collide(int N, int *overlaps, double *trans, int size, box * b1, box * b2) {
-  int index = blockIdx.x + blockDim.x + threadIdx.x;
+__global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
+                             box *b1, box *b2, int *collision_set) {
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
   if (index > N)
     return;
+
   int val = overlaps[index];
   int i = val / size;
   int j = val % size;
-  
+
   double R1[3][3], T1[3], R2[3][3], T2[3];
   for (int index = 0; index < 9; index++) {
     int x = index / 3;
@@ -1185,64 +1082,69 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size, box 
     T1[x] = trans[i * 16 + x * 4 + 3];
     T2[x] = trans[j * 16 + x * 4 + 3];
   }
-
-  cuda_Collide_test(R1, T1, b1, R2, T2, b2);
+  cuda_Collide_test(R1, T1, b1, R2, T2, b2, collision_set, i, j, size);
 }
 
-__global__ void print_trans(double *trans){
-  for (int i = 16*16;i < 16*20;i++){
-    printf("%f ", trans[i]);
-  }
+__global__ void print_trans(box *mybox) {
+  // for (int i = 0; i < 16 * 20; i += 16) {
+  //   printf("%f \n", trans[i]);
+  // }
+  printf("the eroifje is %d ", mybox->prev_index);
 }
 int VCInternal::all_Collide(void) // perform collision detection.
 {
- 
-  // std::cout<< nbody.overlapping_pairs.size<< std::endl;
+
   int *dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
              cudaMemcpyDeviceToHost);
-  // printf("overlapCount %d \n", overlap_count);
+  // for (int i = 0; i < overlap_count;i++){
+  //   printf(" %d ", dev[i]);
+  // }
+  // printf("\n\n end");
   double *my_cuda_trans;
-  box * my_cuda_box;
-  cudaMalloc(&my_cuda_trans, sizeof(double)*16*size);
-  cudaMalloc(&my_cuda_box, sizeof(box)*size);
-  printf("checkpoint %d\n", size);
-  for (int i = 0; i < size;i++){
-    cudaMemcpy(my_cuda_trans+i*16, vc_objects[i]->trans, sizeof(double)* 16, cudaMemcpyHostToDevice);
-    cudaMemcpy(my_cuda_box, vc_objects[current_id]->cuda_store_box, sizeof(box) * Object_boxes_inited,
-             cudaMemcpyHostToDevice);
-
+  box *my_cuda_box;
+  cudaMalloc(&my_cuda_trans, sizeof(double) * 16 * size);
+  cudaMalloc(&my_cuda_box, sizeof(box) * Object_boxes_inited);
+  // printf("checkpoint %d\n", size);
+  for (int i = 0; i < size; i++) {
+    cudaMemcpy(my_cuda_trans + i * 16, vc_objects[i]->trans,
+               sizeof(double) * 16, cudaMemcpyHostToDevice);
   }
+  cudaMemcpy(my_cuda_box, vc_objects[0]->cuda_store_box,
+             sizeof(box) * Object_boxes_inited, cudaMemcpyHostToDevice);
+  int *collision_set;
+  // printf("first idea %f", vc_objects[0]->cuda_store_box->pT[0]);
+  cudaMalloc(&collision_set, sizeof(int) * size * size);
+  // print_trans<<<1,1>>>(my_cuda_box);
+  // box * b1;
+  // box* b2;
+  // cudaMalloc(&b1, sizeof(box)*Object_boxes_inited );
+  // cudaMalloc(&b2, sizeof(box)*Object_boxes_inited);
+  // // printf("the initiated object is %d", Object_boxes_inited);
+  // // printf("the value is %f",
+  // vc_objects[current_id]->cuda_store_box[0].pR[1][0]);
+  // cudaMemcpy(b1, vc_objects[0]->cuda_store_box, sizeof(box),
+  // cudaMemcpyHostToDevice);//vc_objects[0]->cuda_store_box;
+  // cudaMemcpy(b2, vc_objects[0]->cuda_store_box, sizeof(box),
+  // cudaMemcpyHostToDevice);
+  // //printf("the diff is %f\n", b1[0].pR[2][1]);
+  // //b2[1] = vc_objects[6]->cuda_store_box;
 
-  box * b1;
-  box* b2;
-  cudaMalloc(&b1, sizeof(box)*Object_boxes_inited );
-  cudaMalloc(&b2, sizeof(box)*Object_boxes_inited);
-  printf("the initiated object is %d", Object_boxes_inited);
-  printf("the value is %f", vc_objects[current_id]->cuda_store_box[0].pR[1][0]);
-  cudaMemcpy(b1, vc_objects[0]->cuda_store_box, sizeof(box), cudaMemcpyHostToDevice);//vc_objects[0]->cuda_store_box;
-  cudaMemcpy(b2, vc_objects[0]->cuda_store_box, sizeof(box), cudaMemcpyHostToDevice);
-  //printf("the diff is %f\n", b1[0].pR[2][1]);
-  //b2[1] = vc_objects[6]->cuda_store_box;
-  
-  //print_trans<<<1,1>>>(my_cuda_trans);
-  
-  
-  cuda_collide<<<32, 32>>>(overlap_count, overlaps, my_cuda_trans, size, b1, b2);
-  
+  cuda_collide<<<1, 1>>>(overlap_count, overlaps, my_cuda_trans, size,
+                         my_cuda_box, my_cuda_box, collision_set);
 
   return 0;
 }
 
 int VCInternal::Collide(void) // perform collision detection.
 {
-  all_Collide();
+  //all_Collide();
   // std::cout<< nbody.overlapping_pairs.size<< std::endl;
   int *dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
              cudaMemcpyDeviceToHost);
   // printf("overlapCount %d \n", overlap_count);
-  int * collision = new int[32*32];
+  int *collision = new int[32 * 32];
   for (int k = 0; k < overlap_count; k++) {
 
     // for(int i = 0; i< 32;i++){
@@ -1266,13 +1168,11 @@ int VCInternal::Collide(void) // perform collision detection.
     }
 
     // call the RAPID collision detection routine.
-    ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b,collision, i, j);
-    if (collision[i*32+j]){
+    ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b, collision, i,
+              j);
+    if (collision[i * 32 + j]) {
       printf("collision between object %d, and object %d!\n", i, j);
     }
-    // if (Object_num_contacts != 0) {
-    //   printf("collision between object %d, and object %d!\n", i, j);
-    // }
   }
 
   return 0;

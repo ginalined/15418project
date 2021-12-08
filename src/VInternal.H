@@ -207,7 +207,7 @@ public:
 
   tri *trp;
 
-   __host__ __device__ int leaf() { return (prev_index < 0 && next_index < 0); } 
+   __host__ __device__ int leaf() { return (prev_index <= 0 && next_index <= 0); } 
   __device__ __host__ double size() { return d[0]; } 
  
   int split_recurse(int *t, int n);
