@@ -2,9 +2,9 @@
 #define VINTERNAL_H
 
 #include "NBody.H"
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <driver_functions.h>
+// #include <cuda.h>
+// #include <cuda_runtime.h>
+// #include <driver_functions.h>
 // state in which VCollide is:
 const int VCstate_default = 0;   // default state
 const int VCstate_newObject = 1; // a new object has been created but its
@@ -119,10 +119,10 @@ public:
 
   tri *trp;
 
-  __host__ __device__ int leaf() {
-    return (prev_index <= 0 && next_index <= 0);
-  }
-  __device__ __host__ double size() { return d[0]; }
+  // __host__ __device__ int leaf() {
+  //   return (prev_index <= 0 && next_index <= 0);
+  // }
+  // __device__ __host__ double size() { return d[0]; }
 
   int split_recurse(int *t, int n);
   int split_recurse(int *t); // specialized for leaf nodes
