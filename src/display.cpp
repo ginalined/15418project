@@ -26,9 +26,9 @@ renderPicture() {
     gDisplay.vs->render();
 }
 
-void dumpData(const std::string& frameFilename, int frame) {
+void dumpData(const std::string& frameFilename, int frame, int num_tri) {
     char filename[1024];
-    sprintf(filename, "%s_%04d.txt", frameFilename.c_str(), frame);
+    sprintf(filename, "%s_%04d.inp", frameFilename.c_str(), frame);
     
     FILE *fp = fopen(filename, "wb");
 
@@ -37,7 +37,8 @@ void dumpData(const std::string& frameFilename, int frame) {
         exit(1);
     }
 
-    gDisplay.vs->dumpTriangles(fp);
+    fprintf(fp, "%lf\n\n", (double)num_tri);
+    gDisplay.vs->dumpTriangles(fp, num_tri);
 
     fclose(fp);
     // printf("Wrote image file %s\n", filename);
@@ -86,7 +87,7 @@ void dumpFrame(const std::string& frameFilename, int frame) {
 }
 
 void
-startRendererWithDisplay(VCScene* vs, int option, const std::string& frameFilename, int frame) {
+startRendererWithDisplay(VCScene* vs, int option, const std::string& frameFilename, int frame, int num_tri) {
     // setup the display
     vs->allocateImage(128, 128);
     const Image* img = vs->getImage();
@@ -99,6 +100,6 @@ startRendererWithDisplay(VCScene* vs, int option, const std::string& frameFilena
         renderPicture();
         dumpFrame(frameFilename, frame);
     } else if (option == DATA_DUMP) {
-        dumpData(frameFilename, frame);
+        dumpData(frameFilename, frame, num_tri);
     }
 }

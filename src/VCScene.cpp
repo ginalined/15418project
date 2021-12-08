@@ -49,30 +49,16 @@ void SimplfiedObj::addTri(double p1[], double p2[], double p3[]) {
   triList[triSize].p3[0] = p3[0];
   triList[triSize].p3[1] = p3[1];
   triList[triSize].p3[2] = p3[2];
-  triList[triSize].id = triSize;
 
   // update the counter
   triSize++;
 }
 
-static double area2D(double x1, double x2, double x3, double y1, double y2, double y3) {
-    return abs((x1*(y2-y3) + x2*(y3-y1)+ x3*(y1-y2))/2.0);
-}
-
-static bool isInside(double x1, double x2, double x3, double y1, double y2, double y3, double p[]) {
-    // credit to https://www.geeksforgeeks.org/check-whether-a-given-point-lies-inside-a-triangle-or-not/
-    double A = area2D(x1, x2, x3, y1, y2, y3);
-    double A1 = area2D(x1, x2, p[0], y1, y2, p[1]);
-    double A2 = area2D(x3, x2, p[0], y3, y2, p[1]);
-    double A3 = area2D(x1, x3, p[0], y1, y3, p[1]);
-    return (A1 + A2 + A3) == A;
-}
-
 // tri[3], trans[16]
-void VCScene::transTri(double *tri, double *trans) {
+void VCScene::transTri(double *tri, double *trans, double *output) {
     // {4 * 4} * {4 * 1}, last entry of tri = 1
     const int LINE_SIZE = 4;
-    double output[LINE_SIZE];
+    
     for (int i = 0; i < LINE_SIZE; i ++) {
         output[i] = 0;
         for (int j = 0; j < LINE_SIZE; j ++) {
@@ -81,17 +67,21 @@ void VCScene::transTri(double *tri, double *trans) {
             } else {
                 output[i] += trans[i * LINE_SIZE + j] * tri[j];
             }
-            // std::cout << "output[" << i << "] += trans[" << i << "][" << j << "] * tri[" << j <<"]" << std::endl;
         }
+    }
 
-        if (output[3] != 1) {   // normalization
-            for (int j = 0; j < LINE_SIZE - 1; j ++) {
-                output[j] = output[j] / output[3];
-            }
+    // std::cout << "prev: ";
+    // for (int j = 0; j < 3; j ++)
+    //     std::cout << tri[j] << " ";
+    // std::cout << "1\noutput: ";
+    // for (int j = 0; j < 4; j ++)
+    //     std::cout << output[j] << " ";
+    // std::cout << std::endl;
+
+    if (output[3] != 1) {   // normalization
+        for (int j = 0; j < LINE_SIZE - 1; j ++) {
+            output[j] = output[j] / output[3];
         }
-        // std::cout << "output[" << i << "] += trans[" << i << "][" << 3 << "]" << std::endl;
-        if (i != LINE_SIZE - 1)
-            tri[i] = output[i];
     }
 }
 
@@ -146,11 +136,11 @@ int VCScene::AddTri(double v1[], double v2[], double v3[])
 }
 
 int VCScene::EndObject() {
-    memset( ( (void *)vc_objects[current_id]->trans), 0, 16*sizeof(double) );
-    vc_objects[current_id]->trans[0] = 1.0;
-    vc_objects[current_id]->trans[5] = 1.0;
-    vc_objects[current_id]->trans[10] = 1.0;
-    vc_objects[current_id]->trans[15] = 1.0;
+    // memset( ( (void *)vc_objects[current_id]->trans), 0, 16*sizeof(double) );
+    // vc_objects[current_id]->trans[0] = 1.0;
+    // vc_objects[current_id]->trans[5] = 1.0;
+    // vc_objects[current_id]->trans[10] = 1.0;
+    // vc_objects[current_id]->trans[15] = 1.0;
 
     // std::cout << "current_id = " << current_id << std::endl;
   
@@ -178,90 +168,92 @@ void VCScene::clearImage() {
     image->clear(1.f, 1.f, 1.f, 1.f);                                                                                             
 }
 
-void VCScene::dumpTriangles(FILE *fp) {
+void VCScene::dumpTriangles(FILE *fp, int num_tri) {
     for (int objIndex = 0; objIndex <= current_id; objIndex ++) {
-        for (int triIndex = 0; triIndex <= vc_objects[objIndex]->triSize; triIndex ++) {
+        // std::cout << "objIndex = " << objIndex << std::endl;
+        for (int triIndex = 0; triIndex < num_tri; triIndex ++) {
             SimplifyTri cur = vc_objects[objIndex]->triList[triIndex];
                       
-            transTri(cur.p1, vc_objects[objIndex]->trans);
-            transTri(cur.p2, vc_objects[objIndex]->trans);
-            transTri(cur.p3, vc_objects[objIndex]->trans);
-            // vc_objects[objIndex]->triList[triIndex] = cur;
+            const int LINE_SIZE = 4;
+            double newT1[LINE_SIZE];
+            double newT2[LINE_SIZE];
+            double newT3[LINE_SIZE];
+            transTri(cur.p1, vc_objects[objIndex]->trans, newT1);
+            transTri(cur.p2, vc_objects[objIndex]->trans, newT2);
+            transTri(cur.p3, vc_objects[objIndex]->trans, newT3);
 
-            if (objIndex == 0 && triIndex == 0) {
-                // std::cout << "after trans:\t" << cur.p1[0] << "\t" << cur.p1[1] << "\t" << cur.p2[2] << std::endl;
-            }
+            // if (objIndex == 0 && triIndex == 0)
+            //     std::cout << cur.p1[1] << std::endl;
 
-            fprintf(fp, "%lf %lf %lf ", cur.p1[0], cur.p1[1], cur.p1[2]);
-            fprintf(fp, "%lf %lf %lf ", cur.p2[0], cur.p2[1], cur.p2[2]);
-            fprintf(fp, "%lf %lf %lf ", cur.p3[0], cur.p3[1], cur.p3[2]);
-            fprintf(fp, "%lf\n", (double)objIndex);
+            fprintf(fp, "%lf %lf %lf\n", newT1[0], newT1[1], newT1[2]);
+            fprintf(fp, "%lf %lf %lf\n", newT2[0], newT2[1], newT2[2]);
+            fprintf(fp, "%lf %lf %lf\n\n", newT3[0], newT3[1], newT3[2]);
         }
     }
 }
 
 void VCScene::render() {
-    // render all object
-    for (int objIndex=0; objIndex <= current_id; objIndex++) {
-        for (int triIndex = 0; triIndex <= vc_objects[objIndex]->triSize; triIndex ++) {
-            // determine the triangle processed by transformation matrix
-            SimplifyTri cur = vc_objects[objIndex]->triList[triIndex];
+    // // render all object
+    // for (int objIndex=0; objIndex <= current_id; objIndex++) {
+    //     for (int triIndex = 0; triIndex <= vc_objects[objIndex]->triSize; triIndex ++) {
+    //         // determine the triangle processed by transformation matrix
+    //         SimplifyTri cur = vc_objects[objIndex]->triList[triIndex];
             // if (objIndex == 0 && triIndex == 0)
             //     std::cout << "before trans:\t" << cur.p1[0] << "\t" << cur.p1[1] << "\t" << cur.p2[2] << std::endl;
-            transTri(cur.p1, vc_objects[objIndex]->trans);
-            transTri(cur.p2, vc_objects[objIndex]->trans);
-            transTri(cur.p3, vc_objects[objIndex]->trans);
+            // transTri(cur.p1, vc_objects[objIndex]->trans);
+            // transTri(cur.p2, vc_objects[objIndex]->trans);
+            // transTri(cur.p3, vc_objects[objIndex]->trans);
             // if (objIndex == 0 && triIndex == 0) {
             //     std::cout << "trans matrix:\t" << vc_objects[objIndex]->trans[0] << "\t" << vc_objects[objIndex]->trans[1] << "\t" << vc_objects[objIndex]->trans[2] << "\t" << vc_objects[objIndex]->trans[3] << "\n\t\t\t" << vc_objects[objIndex]->trans[4] <<"\t" << vc_objects[objIndex]->trans[5] <<"\t" << vc_objects[objIndex]->trans[6] <<"\t"  << vc_objects[objIndex]->trans[7] << "\n\t\t\t"<< vc_objects[objIndex]->trans[8] <<"\t" << vc_objects[objIndex]->trans[9] <<"\t" << vc_objects[objIndex]->trans[10] <<"\t" << vc_objects[objIndex]->trans[11] << "\n\t\t\t" << vc_objects[objIndex]->trans[12] <<"\t" << vc_objects[objIndex]->trans[13] <<"\t" << vc_objects[objIndex]->trans[14] << "\t" << vc_objects[objIndex]->trans[15] << std::endl;
             //     std::cout << "after trans:\t" << cur.p1[0] << "\t" << cur.p1[1] << "\t" << cur.p2[2] << std::endl;
             // }
 
-            // compute the bounding box of the circle.  This bounding box
-            // is in normalized coordinates
-            float minX = std::min(std::min(cur.p1[0], cur.p2[0]), cur.p3[0]);
-            float maxX = std::max(std::max(cur.p1[0], cur.p2[0]), cur.p3[0]);
-            float minY = std::min(std::min(cur.p1[1], cur.p2[1]), cur.p3[1]);
-            float maxY = std::max(std::max(cur.p1[1], cur.p2[1]), cur.p3[1]);
+    //         // compute the bounding box of the circle.  This bounding box
+    //         // is in normalized coordinates
+    //         float minX = std::min(std::min(cur.p1[0], cur.p2[0]), cur.p3[0]);
+    //         float maxX = std::max(std::max(cur.p1[0], cur.p2[0]), cur.p3[0]);
+    //         float minY = std::min(std::min(cur.p1[1], cur.p2[1]), cur.p3[1]);
+    //         float maxY = std::max(std::max(cur.p1[1], cur.p2[1]), cur.p3[1]);
 
-            // convert normalized coordinate bounds to integer screen
-            // pixel bounds.  Clamp to the edges of the screen.
-            int screenMinX = CLAMP(static_cast<int>(minX * image->width), 0, image->width);
-            int screenMaxX = CLAMP(static_cast<int>(maxX * image->width)+1, 0, image->width);
-            int screenMinY = CLAMP(static_cast<int>(minY * image->height), 0, image->height);
-            int screenMaxY = CLAMP(static_cast<int>(maxY * image->height)+1, 0, image->height);
+    //         // convert normalized coordinate bounds to integer screen
+    //         // pixel bounds.  Clamp to the edges of the screen.
+    //         int screenMinX = CLAMP(static_cast<int>(minX * image->width), 0, image->width);
+    //         int screenMaxX = CLAMP(static_cast<int>(maxX * image->width)+1, 0, image->width);
+    //         int screenMinY = CLAMP(static_cast<int>(minY * image->height), 0, image->height);
+    //         int screenMaxY = CLAMP(static_cast<int>(maxY * image->height)+1, 0, image->height);
 
-            int screenX1 = CLAMP(static_cast<int>(cur.p1[0] * image->width), 0, image->width);
-            int screenY1 = CLAMP(static_cast<int>(cur.p1[1] * image->height), 0, image->height);
-            int screenX2 = CLAMP(static_cast<int>(cur.p2[0] * image->width), 0, image->width);
-            int screenY2 = CLAMP(static_cast<int>(cur.p2[1] * image->height), 0, image->height);
-            int screenX3 = CLAMP(static_cast<int>(cur.p3[0] * image->width), 0, image->width);
-            int screenY3 = CLAMP(static_cast<int>(cur.p3[1] * image->height), 0, image->height);            
+    //         int screenX1 = CLAMP(static_cast<int>(cur.p1[0] * image->width), 0, image->width);
+    //         int screenY1 = CLAMP(static_cast<int>(cur.p1[1] * image->height), 0, image->height);
+    //         int screenX2 = CLAMP(static_cast<int>(cur.p2[0] * image->width), 0, image->width);
+    //         int screenY2 = CLAMP(static_cast<int>(cur.p2[1] * image->height), 0, image->height);
+    //         int screenX3 = CLAMP(static_cast<int>(cur.p3[0] * image->width), 0, image->width);
+    //         int screenY3 = CLAMP(static_cast<int>(cur.p3[1] * image->height), 0, image->height);            
 
-            // for each pixel in the bounding box, determine the circle's
-            // contribution to the pixel.  The contribution is computed in
-            // the function shadePixel.  Since the circle does not fill
-            // the bounding box entirely, not every pixel in the box will
-            // receive contribution.
-            for (int pixelY=screenMinY; pixelY<screenMaxY; pixelY++) {
+    //         // for each pixel in the bounding box, determine the circle's
+    //         // contribution to the pixel.  The contribution is computed in
+    //         // the function shadePixel.  Since the circle does not fill
+    //         // the bounding box entirely, not every pixel in the box will
+    //         // receive contribution.
+    //         for (int pixelY=screenMinY; pixelY<screenMaxY; pixelY++) {
 
-                // pointer to pixel data
-                float* imgPtr = &image->data[4 * (pixelY * image->width + screenMinX)];
+    //             // pointer to pixel data
+    //             float* imgPtr = &image->data[4 * (pixelY * image->width + screenMinX)];
 
-                for (int pixelX=screenMinX; pixelX<screenMaxX; pixelX++) {
-                    double p[] = {pixelX, pixelY};
-                    if (!isInside(screenX1, screenX2, screenX3, screenY1, screenY2, screenY3, p)) {
-                        continue;
-                    }
+    //             for (int pixelX=screenMinX; pixelX<screenMaxX; pixelX++) {
+    //                 double p[] = {pixelX, pixelY};
+    //                 if (!isInside(screenX1, screenX2, screenX3, screenY1, screenY2, screenY3, p)) {
+    //                     continue;
+    //                 }
 
-                    // shader: black
-                    imgPtr[0] = 0.f;
-                    imgPtr[1] = 0.f;
-                    imgPtr[2] = 0.f;
-                    imgPtr[3] = 1.f;
+    //                 // shader: black
+    //                 imgPtr[0] = 0.f;
+    //                 imgPtr[1] = 0.f;
+    //                 imgPtr[2] = 0.f;
+    //                 imgPtr[3] = 1.f;
 
-                    imgPtr += 4;
-                }
-            }
-        }
-    }
+    //                 imgPtr += 4;
+    //             }
+    //         }
+    //     }
+    // }
 }
