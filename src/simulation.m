@@ -3,12 +3,11 @@ close all;
 clc
 
 % Nframe = 100;
-% Nframe = 1;
+Nframe = 10;
 fov = 50;   % Define field of view of the camera in degrees
 
-% M = moviein(Nframe);  % movie M
-% for number=1: Nframe-1
-number = 1;
+M = moviein(Nframe);  % movie M
+for number=1: Nframe
     % plot frame
     fig = figure();
     % axis vis3d
@@ -18,56 +17,19 @@ number = 1;
     % camproj('perspective');
     % camup([0, 1, 1]);
 
-    fname = 'triangle.inp'
+    fname = sprintf("output/nbody_%04d.inp", number)
     obj_list = readTriangle(fname);
-    objCount = size(obj_list, 2);
+    perFrameRender(obj_list);
 
-    for objId=1:objCount
-        sphere = obj_list(objId).triangle_list;
-        % extract sphere data point
-        triCount = size(sphere, 2);
+    % collect frames
+    M(number) = getframe(fig);
+    size(M(number).cdata);
+    close(fig);
+end
 
-        % format the list of data points
-        X = zeros(triCount, 3);
-        Y = zeros(triCount, 3);
-        Z = zeros(triCount, 3);
-        
-        % for each triangle inside the sphere
-        for triId = 1:triCount
-            triangle = sphere(triId);
-            X(triId, 1) = triangle.p1(1);
-            X(triId, 2) = triangle.p2(1);
-            X(triId, 3) = triangle.p3(1);
-            
-            Y(triId, 1) = triangle.p1(2);
-            Y(triId, 2) = triangle.p2(2);
-            Y(triId, 3) = triangle.p3(2);
-            
-            Z(triId, 1) = triangle.p1(3);
-            Z(triId, 2) = triangle.p2(3);
-            Z(triId, 3) = triangle.p3(3);
-        end
-        
-        % randomrize a color for the current sphere
-        C = rand(triCount, 3);
+output(M, 2);
 
-        % render triangle
-        fill3(X, Y, Z, C);
-        xlim([-0.6, 0.6]);
-        ylim([-1, 1]);
-        zlim([-1, 1]);
-        hold on;
-    end
-
-    % % collect frames
-    % M(number) = getframe(fig);
-    % size(M(number).cdata);
-    % close(fig);
-% end
-
-% output(M, 1);
-
-% close all;
+close all;
 
 
 % For each frame, extra a list of traingles with x,y,z positions
@@ -100,6 +62,53 @@ function obj_list = readTriangle(fname)
         obj_list = [obj_list, obj];   % wrap up
     else
         fprintf('File %s does not exist.\Nframe', fname);    % throw exception
+    end
+end
+
+% for each frame, generate the sphere and render to the figure according to the extracted data
+function perFrameRender(obj_list)
+    objCount = size(obj_list, 2);
+
+    for objId=1:objCount
+        sphere = obj_list(objId).triangle_list;
+        % extract sphere data point
+        triCount = size(sphere, 2);
+
+        % format the list of data points
+        X = zeros(triCount, 3);
+        Y = zeros(triCount, 3);
+        Z = zeros(triCount, 3);
+        
+        % for each triangle inside the sphere
+        for triId = 1:triCount
+            triangle = sphere(triId);
+            X(triId, 1) = triangle.p1(1);
+            X(triId, 2) = triangle.p2(1);
+            X(triId, 3) = triangle.p3(1);
+            
+            Y(triId, 1) = triangle.p1(2);
+            Y(triId, 2) = triangle.p2(2);
+            Y(triId, 3) = triangle.p3(2);
+            
+            Z(triId, 1) = triangle.p1(3);
+            Z(triId, 2) = triangle.p2(3);
+            Z(triId, 3) = triangle.p3(3);
+        end
+        
+        % randomrize a color for the current sphere
+        % C = rand(triCount, 3);
+
+        % render triangle
+        % fill3(X, Y, Z, C);
+        color = 'r';
+        if objId < objCount / 2
+            color = 'b';
+        end
+        fill3(X, Y, Z, color);
+        xlim([-0.7, 0.7]);
+        ylim([-1.2, 1.2]);
+        zlim([-0.3, 0.3]);
+        hold on;
     end
 end
 

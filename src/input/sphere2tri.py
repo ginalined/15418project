@@ -6,6 +6,23 @@ THRESHOLD = 0.0001
 SLICE = 4
 STACK = 8
 
+SPHERE_2_TRI = \
+"\n\nThis script transfers spheres into triangles.\n\
+All of the output objects will be spheres.\n\
+The number of triangles is determined by SLICE and STACK.\n\
+Sphere input file = 'spheres.txt'\n\
+Triangle output file = 'spheres.inp'.\n\n\
+"
+
+HEAD = \
+"\n\nThis script transfers Mickey-Mouse-Head into triangles.\n\
+All of the output objects will be 3 composed spheres.\n\
+The ears' radius = 0.7 of the head's radius.\n\
+The number of triangles for each sphere is determined by SLICE and STACK.\n\
+Main sphere input file = 'spheres.txt'\n\
+Triangle output file = 'head.inp'.\n\n\
+"
+
 def my_round(f):
     return f
     # rounded_f = round(f)
@@ -139,33 +156,86 @@ def point_to_triangle(round_buffer, top, org_z):
     
     return triangle_list
 
+def extract_data(fname):
+    # extract sphere info
+    lines = []
+    with open(fname) as f:
+        lines = f.readlines()
+    return lines
 
-# extract sphere info
-lines = []
-with open('spheres.txt') as f:
-    lines = f.readlines()
+def sphere2tri():
+    print(SPHERE_2_TRI)
+    lines = extract_data('spheres.txt')
 
-tri_count = 0
-obj_buffer = []
-for line in lines:
-    dim = line.split(" ")
-    org = [float(dim[0]), float(dim[1]), float(dim[2])]
-    rad = float(dim[3])
-    
-    # process to find all triangles for each sphere
-    point_list = sphere_to_point(org, rad, SLICE, STACK)
-    triangle_list = point_to_triangle(point_list, [org[0], org[1], org[2] + rad], org[2])
-    tri_count = len(triangle_list)     # triangle count for one sphere
-    obj_buffer.append(triangle_list)
+    tri_count = 0
+    obj_buffer = []
+    for line in lines:
+        dim = line.split(" ")
+        org = [float(dim[0]), float(dim[1]), float(dim[2])]
+        rad = float(dim[3])
+        
+        # process to find all triangles for each sphere
+        point_list = sphere_to_point(org, rad, SLICE, STACK)
+        triangle_list = point_to_triangle(point_list, [org[0], org[1], org[2] + rad], org[2])
+        tri_count = len(triangle_list)     # triangle count for one sphere
+        obj_buffer.append(triangle_list)
 
-# write to create inp file
-op = open("triangle.inp", "w")
-op.write(str(tri_count))
-op.write('\n\n')
+    # write to create inp file
+    op = open("spheres.inp", "w")
+    op.write(str(tri_count))
+    op.write('\n\n')
 
-for obj in obj_buffer:
-    for tri in obj:
-        for p in tri:
-            op.write(str(p[0]) + " " + str(p[1]) + " " + str(p[2]) + "\n")
-        op.write("\n")
- 
+    for obj in obj_buffer:
+        for tri in obj:
+            for p in tri:
+                op.write(str(p[0]) + " " + str(p[1]) + " " + str(p[2]) + "\n")
+            op.write("\n")
+
+def head():
+    print(HEAD)
+    lines = extract_data('spheres.txt')
+
+    tri_count = 0
+    obj_buffer = []
+    for line in lines:
+        dim = line.split(" ")
+        org = [float(dim[0]), float(dim[1]), float(dim[2])]
+        rad = float(dim[3])
+        
+        # for the main sphere
+        point_list = sphere_to_point(org, rad, SLICE, STACK)
+        triangle_list = point_to_triangle(point_list, [org[0], org[1], org[2] + rad], org[2])
+        tri_count = len(triangle_list)     # triangle count for one sphere
+        obj_buffer.append(triangle_list)
+
+        subr = 0.7 * rad
+        delta = (rad + subr) / 2
+
+        # for the right sub sphere
+        sub_r_org = [org[0], org[1] + delta, org[2] + math.sqrt(3) * delta]
+        point_list = sphere_to_point(sub_r_org, subr, SLICE, STACK)
+        triangle_list = point_to_triangle(point_list, [sub_r_org[0], sub_r_org[1], sub_r_org[2] + subr], sub_r_org[2])
+        tri_count += len(triangle_list)
+        obj_buffer.append(triangle_list)
+        
+        # for the left sub sphere
+        sub_l_org = [org[0], org[1] - delta, org[2] + math.sqrt(3) * delta]
+        point_list = sphere_to_point(sub_l_org, subr, SLICE, STACK)
+        triangle_list = point_to_triangle(point_list, [sub_l_org[0], sub_l_org[1], sub_l_org[2] + subr], sub_l_org[2])
+        tri_count += len(triangle_list)
+        obj_buffer.append(triangle_list)
+
+    # write to create inp file
+    op = open("heads.inp", "w")
+    op.write(str(tri_count))
+    op.write('\n\n')
+
+    for obj in obj_buffer:
+        for tri in obj:
+            for p in tri:
+                op.write(str(p[0]) + " " + str(p[1]) + " " + str(p[2]) + "\n")
+            op.write("\n")
+
+
+# sphere2tri()
+head()
