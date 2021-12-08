@@ -3,8 +3,8 @@ import math
 
 PI = 3.14159
 THRESHOLD = 0.0001
-SLICE = 2
-STACK = 4
+SLICE = 4
+STACK = 8
 
 def my_round(f):
     return f
