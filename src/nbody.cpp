@@ -20,6 +20,7 @@ void startRendererWithDisplay(VCScene *vs, int option,
 int main(int argc, char *argv[]) {
 
   double startTime = CycleTimer::currentSeconds();
+  double dumpTime = 0;
 
   if (argc != 3) {
     cerr << argv[0] << ": USAGE: " << argv[0]
@@ -119,6 +120,7 @@ int main(int argc, char *argv[]) {
 
     vc.Collide();
     
+    double dumpStartTime = CycleTimer::currentSeconds();
     // output trans matrix
     for (j = 0; j < NO_OF_OBJECTS; j++) {
       double *per_trans = new double[16];
@@ -128,10 +130,11 @@ int main(int argc, char *argv[]) {
       vs.UpdateTrans(id[j], per_trans);
     }
     startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i, num_tri);
+    dumpTime += CycleTimer::currentSeconds() - dumpStartTime;
   }
 
   double endTime = CycleTimer::currentSeconds();
-  std::cout << endTime << ' ' << startTime << std::endl;
+  std::cout << endTime - startTime - dumpTime << std::endl;
   // double seconds = difftime(endtime, now);
   // printf ("%.f running time\n", seconds);
   // cout<<" Finish Detected collision between objects\n";
