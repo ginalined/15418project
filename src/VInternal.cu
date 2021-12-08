@@ -20,8 +20,7 @@ double Object_mR[3][3];
 double Object_mT[3];
 double Object_ms;
 
-__device__ double cuda_mR[3][3];
-__device__ double cuda_mT[3];
+
 
 int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
@@ -522,7 +521,7 @@ int tri_contact(box *b1, box *b2) {
   return 0;
 }
 
-__device__ int cuda_tri_contact(box *b1, box *b2) {
+__device__ int cuda_tri_contact(box *b1, box *b2, double cuda_mR[3][3] , double cuda_mT[3] ) {
 
   double i1[3];
   double i2[3];
@@ -646,16 +645,17 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
 __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
                                       double T[3], double s, int *collision_set,
                                       int i, int j, int size, box *b10,
-                                      box *b20) {
+                                      box *b20, double cuda_mR[3][3] , double cuda_mT[3] ) {
 
   if (collision_set[i * 32 + j])
     return 0;
 
   if (obb_disjoint(R, T, b1->d, b2->d))
     return 0;
-
+    //printf("i, j is %d, %d\n", i,j);
+    
   if (b1->leaf() && b2->leaf()) {
-    int code = cuda_tri_contact(b1, b2);
+    int code = cuda_tri_contact(b1, b2, cuda_mR, cuda_mT);
     if (code) {
       collision_set[i * 32 + j] = 1;
       printf("I see a collision! %d, %d\n", i, j);
@@ -675,9 +675,8 @@ __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
 
   memcpy(bc[0].R, R, 9 * sizeof(double));
   memcpy(bc[0].T, T, 3 * sizeof(double));
-  printf("zzzz seeing! %d, %d, %f, %d\n", b1->prev_index, b2->next_index, T[0],
-         size);
-  printf("I see you! %f, \n", bc[0].R[0][0]);
+  
+  //printf("I see you! %f, \n", bc[0].R[0][0]);
   bc[0].b1 = b1;
   bc[0].b2 = b2;
   while (used < alloc) {
@@ -691,12 +690,12 @@ __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
 
     if (cur_box_pair.b1->leaf() && cur_box_pair.b2->leaf()) {
 
-      int code = cuda_tri_contact(cur_box_pair.b1, cur_box_pair.b2);
+      int code = cuda_tri_contact(cur_box_pair.b1, cur_box_pair.b2, cuda_mR, cuda_mT);
 
       if (code) {
 
         collision_set[i * 32 + j] = 1;
-        printf("find a collision!");
+        printf("find a collision %d, %d!\n", i,j);
 
         break;
       }
@@ -748,7 +747,7 @@ __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
       bc[alloc].b2 = b2_prev;
       alloc++;
     }
-    printf("I see you! %d, %d \n", used, alloc);
+    //printf("I see you! %d, %d \n", used, alloc);
   }
 
   return 0;
@@ -1129,6 +1128,8 @@ __device__ void cuda_Collide_test(double R1[3][3], double T1[3], box *b1,
 
   double tR1[3][3], tR2[3][3], R[3][3];
   double tT1[3], tT2[3], T[3], U[3];
+  double cuda_mR[3][3];
+  double cuda_mT[3];
 
   MxM(tR1, R1, b1->pR);             // tR1 = R1 * b1->pR;
   sMxVpV(tT1, 1.0, R1, b1->pT, T1); // tT1 = s1 * R1 * b1->pT + T1;
@@ -1139,17 +1140,17 @@ __device__ void cuda_Collide_test(double R1[3][3], double T1[3], box *b1,
   MTxM(R, tR1, tR2); // R = tR1.T()*tR2;
   VmV(U, tT2, tT1);
   sMTxV(T, 1.0, tR1, U); // T = tR1.T()*(tT2-tT1)/s1;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      printf("%f ", R[i][j]);
-    }
-  }
-  printf("\n");
+  // for (int i = 0; i < 3; i++) {
+  //   for (int j = 0; j < 3; j++) {
+  //     printf("%f ", R[i][j]);
+  //   }
+  // }
+
   MTxM(cuda_mR, R2, R1);
   VmV(U, T1, T2);
   sMTxV(cuda_mT, 1.0, R2, U);
-
-  cuda_collide_recursive(b1, b2, R, T, 1.0, collision_set, i, j, size, b1, b2);
+  
+  cuda_collide_recursive(b1, b2, R, T, 1.0, collision_set, i, j, size, b1, b2, cuda_mR, cuda_mT);
 }
 
 __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
@@ -1161,6 +1162,7 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
   int val = overlaps[index];
   int i = val / size;
   int j = val % size;
+  
 
   double R1[3][3], T1[3], R2[3][3], T2[3];
 
@@ -1175,7 +1177,7 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
     T1[x] = trans[i * 16 + x * 4 + 3];
     T2[x] = trans[j * 16 + x * 4 + 3];
   }
-  // printf("The value is %f, %f\n",T1[0], R1[0][0] );
+  // // printf("The value is %f, %f\n",T1[0], R1[0][0] );
   cuda_Collide_test(R1, T1, b1, R2, T2, b2, collision_set, i, j, size);
 }
 
@@ -1224,7 +1226,7 @@ int VCInternal::all_Collide(void) // perform collision detection.
   // //printf("the diff is %f\n", b1[0].pR[2][1]);
   // //b2[1] = vc_objects[6]->cuda_store_box;
 
-  cuda_collide<<<1, 1>>>(overlap_count, overlaps, my_cuda_trans, size,
+  cuda_collide<<<32, 32>>>(overlap_count, overlaps, my_cuda_trans, size,
                          my_cuda_box, my_cuda_box, collision_set);
 
   return 0;
@@ -1246,6 +1248,7 @@ int VCInternal::Collide(void) // perform collision detection.
     int val = dev[k];
     int i = val / size;
     int j = val % size;
+
     // if (i == j)
     //   continue;
     double R1[3][3], T1[3], R2[3][3], T2[3];
