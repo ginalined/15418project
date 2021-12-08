@@ -20,10 +20,9 @@ double Object_mR[3][3];
 double Object_mT[3];
 double Object_ms;
 
-int Object_first_contact;
-int Object_num_contacts = 0;
+
 int Object_num_cols_alloced = 0;
-collision_pair *Object_contact = 0;
+
 
 __device__ double cuda_mR[3][3];
 __device__ double cuda_mT[3];
@@ -31,7 +30,8 @@ __device__ double cuda_ms;
 __device__ int cuda_first_contact;
 __device__ int cuda_num_contacts = 0;
 __device__ int cuda_num_cols_alloced = 0;
-// collision_pair *Object_contact = 0;
+
+
 
 int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
@@ -541,10 +541,7 @@ int tri_contact(box *b1, box *b2) {
   int f = tri_contact(i1, i2, i3, b2->trp->p1, b2->trp->p2, b2->trp->p3);
 
   if (f) {
-    // add_collision may be unable to allocate enough memory,
-    // so be prepared to pass along an OUT_OF_MEMORY return code.
-    if ((rc = add_collision(b1->trp->id, b2->trp->id)) != 0)
-      return rc;
+    return 1;
   }
 
   return 0;
@@ -572,11 +569,11 @@ __device__ int cuda_tri_contact(box *b1, box *b2) {
   return 0;
 }
 
-int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s) {
+int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s, int * collisions, int i, int j) {
   double d[3]; // temp storage for scaled dimensions of box b2.
   int rc;      // return codes
 
-  if (Object_first_contact && (Object_num_contacts > 0))
+  if ( collisions[i*32+j])
     return 0;
 
   // test top level
@@ -604,7 +601,11 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s) {
 
     // this will pass along any OUT_OF_MEMORY return codes which
     // may be generated.
-    return tri_contact(b1, b2);
+    int code =  tri_contact(b1, b2);
+    if (code)
+      collisions[i*32+j] = 1;
+
+    return 0;
   }
 
   double U[3];
@@ -631,7 +632,7 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s) {
     MTxV(cT, b1_next->pR, U);
     cs = s;
 
-    if ((rc = collide_recursive(b1_next, b2, cR, cT, cs)) != 0)
+    if ((rc = collide_recursive(b1_next, b2, cR, cT, cs, collisions,i,j)) != 0)
       return rc;
 
     MTxM(cR, b1_prev->pR, R);
@@ -639,7 +640,7 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s) {
     MTxV(cT, b1_prev->pR, U);
     cs = s;
 
-    if ((rc = collide_recursive(b1_prev, b2, cR, cT, cs)) != 0)
+    if ((rc = collide_recursive(b1_prev, b2, cR, cT, cs,collisions,i,j)) != 0)
       return rc;
 
     return 0;
@@ -653,14 +654,14 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s) {
     sMxVpV(cT, s, R, b2_next->pT, T);
     cs = s;
 
-    if ((rc = collide_recursive(b1, b2_next, cR, cT, cs)) != 0)
+    if ((rc = collide_recursive(b1, b2_next, cR, cT, cs,collisions,i,j)) != 0)
       return rc;
 
     MxM(cR, R, b2_prev->pR);
     sMxVpV(cT, s, R, b2_prev->pT, T);
     cs = s;
 
-    if ((rc = collide_recursive(b1, b2_prev, cR, cT, cs)) != 0)
+    if ((rc = collide_recursive(b1, b2_prev, cR, cT, cs, collisions,i,j)) != 0)
       return rc;
 
     return 0;
@@ -669,22 +670,17 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s) {
   return 0;
 }
 
-int Collide(double R1[3][3], double T1[3], Object *Object_model1,
-            double R2[3][3], double T2[3], Object *Object_model2, int flag) {
-  return Collide(R1, T1, 1.0, Object_model1, R2, T2, 1.0, Object_model2, flag);
-}
+
 
 __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
                                       double T[3], double s) {
   double d[3]; // temp storage for scaled dimensions of box b2.
   int rc;      // return codes
 
-  if (cuda_first_contact && (cuda_num_contacts > 0))
+  if ( cuda_num_contacts > 0)
     return 0;
 
   // test top level
-
-
 
   int f1;
 
@@ -770,14 +766,15 @@ __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
   return 0;
 }
 
-int Collide(double R1[3][3], double T1[3], double s1, Object *Object_model1,
-            double R2[3][3], double T2[3], double s2, Object *Object_model2,
-            int flag) {
+int Collide(double R1[3][3], double T1[3], Object *Object_model1,
+            double R2[3][3], double T2[3], Object *Object_model2,
+            int *collision, int i, int j) {
 
   box *b1 = Object_model1->b;
   box *b2 = Object_model2->b;
 
-  Object_first_contact = 1;
+  int s1 = 1.0;
+  int s2 = 1.0;    
 
   double tR1[3][3], tR2[3][3], R[3][3];
   double tT1[3], tT2[3], T[3], U[3];
@@ -812,60 +809,11 @@ int Collide(double R1[3][3], double T1[3], double s1, Object *Object_model1,
     Object_ms = s1 / s2;
   }
 
-  // reset the report fields
-
-
-  Object_num_contacts = 0;
 
   // make the call
-  return collide_recursive(b1, b2, R, T, s);
+  return collide_recursive(b1, b2, R, T, s, collision,i,j);
 }
 
-int add_collision(int id1, int id2) {
-  if (!Object_contact) {
-    Object_contact = new collision_pair[10];
-
-    Object_num_cols_alloced = 10;
-    Object_num_contacts = 0;
-  }
-
-  if (Object_num_contacts == Object_num_cols_alloced) {
-    collision_pair *t = new collision_pair[Object_num_cols_alloced * 2];
-
-    Object_num_cols_alloced *= 2;
-
-    for (int i = 0; i < Object_num_contacts; i++)
-      t[i] = Object_contact[i];
-    delete[] Object_contact;
-    Object_contact = t;
-  }
-
-  Object_contact[Object_num_contacts].id1 = id1;
-  Object_contact[Object_num_contacts].id2 = id2;
-  Object_num_contacts++;
-  ;
-
-  return 0;
-}
-
-int get_info(AABB *input) {
-
-  AABB *temp = new AABB[32];
-  cudaMemcpy(temp, input, 32 * sizeof(AABB), cudaMemcpyDeviceToHost);
-  printf("no way!\n");
-  for (int i = 0; i < 32; i++)
-    printf("the idea is that %f, %d\n", temp[i].center[0], temp[i].id);
-  return 0;
-}
-int get_info1(int *input) {
-
-  int *temp = new int[32];
-  cudaMemcpy(temp, input, 32 * sizeof(int), cudaMemcpyDeviceToHost);
-  printf("no way!\n");
-  for (int i = 0; i < 32; i++)
-    printf("the idea is that %d\n", temp[i]);
-  return 0;
-}
 
 __global__ void MergeSort(AABB *input, int N, AABB *output, int total,
                           int dim) {
@@ -1185,7 +1133,7 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
 __device__ void cuda_Collide_test(double R1[3][3], double T1[3], box *b1,
                                   double R2[3][3], double T2[3], box *b2) {
 
-  cuda_first_contact = 1;
+
   double s1 = 0;
   double s2 = 0;
   double tR1[3][3], tR2[3][3], R[3][3];
@@ -1237,8 +1185,7 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size, box 
     T1[x] = trans[i * 16 + x * 4 + 3];
     T2[x] = trans[j * 16 + x * 4 + 3];
   }
-  
-  
+
   cuda_Collide_test(R1, T1, b1, R2, T2, b2);
 }
 
@@ -1283,7 +1230,6 @@ int VCInternal::all_Collide(void) // perform collision detection.
   
   cuda_collide<<<32, 32>>>(overlap_count, overlaps, my_cuda_trans, size, b1, b2);
   
-  
 
   return 0;
 }
@@ -1296,6 +1242,7 @@ int VCInternal::Collide(void) // perform collision detection.
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
              cudaMemcpyDeviceToHost);
   // printf("overlapCount %d \n", overlap_count);
+  int * collision = new int[32*32];
   for (int k = 0; k < overlap_count; k++) {
 
     // for(int i = 0; i< 32;i++){
@@ -1319,12 +1266,13 @@ int VCInternal::Collide(void) // perform collision detection.
     }
 
     // call the RAPID collision detection routine.
-    ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b,
-              FIRST_CONTACT);
-
-    if (Object_num_contacts != 0) {
+    ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b,collision, i, j);
+    if (collision[i*32+j]){
       printf("collision between object %d, and object %d!\n", i, j);
     }
+    // if (Object_num_contacts != 0) {
+    //   printf("collision between object %d, and object %d!\n", i, j);
+    // }
   }
 
   return 0;

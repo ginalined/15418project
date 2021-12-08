@@ -244,8 +244,7 @@ public:
   int friend Collide(double R1[3][3], double T1[3], 
 		 double s1, Object *RAPID_model1,
 		 double R2[3][3], double T2[3], 
-		 double s2, Object *RAPID_model2,
-		 int flag);
+		 double s2, Object *RAPID_model2, int * collision, int i, int j);
 public:
 
   // these are for the client
@@ -292,11 +291,6 @@ struct collision_pair
 
 /****************************************************************************/
 
-extern int Object_first_contact;
-extern  int Object_num_box_tests;
-extern  int Object_num_tri_tests;
-extern  int Object_num_contacts;
-extern  struct collision_pair *Object_contact;
 
 
 
