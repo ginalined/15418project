@@ -26,13 +26,6 @@ __device__ double cuda_mT[3];
 int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
 
-struct box_container {
-  double R[3][3]; 
-  double T[3];
-  box *b;
-} ;
-
-
 Object::Object() {
   b = 0;
   num_boxes_alloced = 0;
@@ -520,20 +513,23 @@ __device__ int cuda_tri_contact(box *b1, box *b2) {
   return tri_contact(i1, i2, i3, b2->trp->p1, b2->trp->p2, b2->trp->p3);
 }
 
+struct box_containers {
+  double R[3][3];
+  double T[3];
+  box *b1;
+  box *b2;
+};
+
 int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
                       int *collisions, int i, int j) {
-
 
   if (collisions[i * 32 + j])
     return 0;
 
   if (obb_disjoint(R, T, b1->d, b2->d))
-          return 0;
-
-
+    return 0;
 
   if (b1->leaf() && b2->leaf()) {
-
     int code = tri_contact(b1, b2);
     if (code)
       collisions[i * 32 + j] = 1;
@@ -545,127 +541,166 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
 
   double cR[3][3], cT[3], cs;
 
+  box_containers bc[71*71];
 
-  if (b2->leaf() || (!b1->leaf() && (b1->size() > b2->size()))) {
+  int used = 0;
+  int alloc = 1;
+  memcpy(bc[0].R, R, 9*sizeof(double));
+  memcpy(bc[0].T, T, 3*sizeof(double));
 
-    box *b1_next = &Object_boxes[b1->next_index];
-    box *b1_prev = &Object_boxes[b1->prev_index];
-    MTxM(cR, b1_next->pR, R);
-    VmV(U, T, b1_next->pT);
-    MTxV(cT, b1_next->pR, U);
-
-    collide_recursive(b1_next, b2, cR, cT, 1.0, collisions, i, j);
-
-
-    MTxM(cR, b1_prev->pR, R);
-    VmV(U, T, b1_prev->pT);
-    MTxV(cT, b1_prev->pR, U);
-
-   collide_recursive(b1_prev, b2, cR, cT, 1.0, collisions, i, j);
-
-  } else {
-
-    box *b2_next = &Object_boxes[b2->next_index];
-    box *b2_prev = &Object_boxes[b2->prev_index];
-
-    MxM(cR, R, b2_next->pR);
-    sMxVpV(cT, s, R, b2_next->pT, T);
-
-    collide_recursive(b1, b2_next, cR, cT, 1.0, collisions, i, j);
-
-
-    MxM(cR, R, b2_prev->pR);
-    sMxVpV(cT, s, R, b2_prev->pT, T);
-
-    collide_recursive(b1, b2_prev, cR, cT, 1.0, collisions, i, j);
-
-  }
-
-  return 0;
-}
-
-
-
-__device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
-                                        double T[3], double s,
-                                        int *collision_set, int i, int j,
-                                        int size, box *b10, box *b20) {
-
-  double U[3];
-
-  double cR[3][3], cT[3], cs;
-  box_container container1[71];
-  box_container container2[71];
-  // container1[0].R = R;
-  // container1[0].T = T;
-  // container2[0].R = R;
-  // container2[0].T = T;
-  // container1->b = b1;
-  // container2->b = b2;
-  int index1 = 0;
-  int index2 = 0;
-  int alloc;
-  int used;
-  //cudaMemcpy2DArrayToArray(container1[0].R, 0,0,R, 0,0,3*sizeof(double),3*sizeof(double));
-  while (1) {
-    box_container cc1 = container1[index1];
-    box_container cc2 = container2[index2];
-    if (obb_disjoint(R, T, cc1.b->d, cc2.b->d) != 0) {
-      used++;
+  bc[0].b1 = b1;
+  bc[0].b2 = b2;
+  while (used < alloc) {
+    
+    box_containers cur_box_pair = bc[used];
+    used++;
+    if (obb_disjoint(cur_box_pair.R, cur_box_pair.T, cur_box_pair.b1->d, cur_box_pair.b2->d))
       continue;
-    }
-
-    if (cc1.b->leaf() && cc2.b->leaf()) {
-
-      if (cuda_tri_contact(cc1.b, cc2.b)) {
-        collision_set[i * size + j] = 1;
+      //printf("here 1 %d %d\n", cur_box_pair.b1->next_index, cur_box_pair.b2->next_index);
+    if (cur_box_pair.b1->leaf() && cur_box_pair.b2->leaf()) {
+      //printf("here 1 %d %d\n", cur_box_pair.b1->next_index, cur_box_pair.b2->next_index);
+      int code = tri_contact(cur_box_pair.b1, cur_box_pair.b2);
+      if (code){
+        collisions[i * 32 + j] = 1;
         break;
       }
+      continue;
     }
+    if (cur_box_pair.b2->leaf() ||
+        (!cur_box_pair.b1->leaf() &&
+         (cur_box_pair.b1->size() > cur_box_pair.b2->size()))) {
+          box *b1_next = &Object_boxes[cur_box_pair.b1->next_index];
+          box *b1_prev = &Object_boxes[cur_box_pair.b1->prev_index];
+          MTxM(cR, b1_next->pR, cur_box_pair.R);
+          VmV(U, cur_box_pair.T, b1_next->pT);
+          MTxV(cT, b1_next->pR, U);
+          memcpy(bc[alloc].R, cR, 9*sizeof(double));
+          memcpy(bc[alloc].T, cT, 3*sizeof(double));
+          bc[alloc].b1 = b1_next;
+          bc[alloc].b2 = cur_box_pair.b2;
+          alloc++;
 
-    if (cc2.b->leaf() || (!cc1.b->leaf() && (cc1.b->size() > cc2.b->size()))) {
+          MTxM(cR, b1_prev->pR, cur_box_pair.R);
+          VmV(U, cur_box_pair.T, b1_prev->pT);
+          MTxV(cT, b1_prev->pR, U);
+          memcpy(bc[alloc].R, cR, 9*sizeof(double));
+          memcpy(bc[alloc].T, cT, 3*sizeof(double));
+          bc[alloc].b1 = b1_prev;
+          bc[alloc].b2 = cur_box_pair.b2;
+          alloc++;
+    }
+    else {
 
-      box *b1_next = &b10[cc1.b->next_index];
-      box *b1_prev = &b10[cc1.b->prev_index];
-      MTxM(cR, b1_next->pR, R);
-      VmV(U, T, b1_next->pT);
-      MTxV(cT, b1_next->pR, U);
+      box *b2_next = &Object_boxes[cur_box_pair.b2->next_index];
+      box *b2_prev = &Object_boxes[cur_box_pair.b2->prev_index];
+  
+      MxM(cR, cur_box_pair.R, b2_next->pR);
+      sMxVpV(cT, 1.0, cur_box_pair.R, b2_next->pT, cur_box_pair.T);
 
-      cuda_collide_recursive(b1_next, b2, cR, cT, 1.0, collision_set, i, j,
-                             size, b10, b20);
-
-      MTxM(cR, b1_prev->pR, R);
-      VmV(U, T, b1_prev->pT);
-      MTxV(cT, b1_prev->pR, U);
-
-      cuda_collide_recursive(b1_prev, b2, cR, cT, 1.0, collision_set, i, j,
-                             size, b10, b20);
-
-    } else {
-      printf("here 3 %d\n", b2->prev_index);
-      // here we descend to the children of b2.  See comments for
-      // other 'if' clause for explanation.
-
-      box *b2_next = &b20[b2->next_index];
-      box *b2_prev = &b20[b2->prev_index];
-
-      MxM(cR, R, b2_next->pR);
-      sMxVpV(cT, s, R, b2_next->pT, T);
-      cs = s;
-
-      cuda_collide_recursive(b1, b2_next, cR, cT, cs, collision_set, i, j, size,
-                             b10, b20);
-      MxM(cR, R, b2_prev->pR);
-      sMxVpV(cT, s, R, b2_prev->pT, T);
-      cs = s;
-
-      cuda_collide_recursive(b1, b2_prev, cR, cT, cs, collision_set, i, j, size,
-                             b10, b20);
+      memcpy(bc[alloc].R, cR, 9*sizeof(double));
+      memcpy(bc[alloc].T, cT, 3*sizeof(double));
+      bc[alloc].b1 = cur_box_pair.b1;
+      bc[alloc].b2 = b2_next;
+      alloc++;
+  
+      MxM(cR, cur_box_pair.R, b2_prev->pR);
+      sMxVpV(cT, 1.0, cur_box_pair.R,b2_prev->pT, cur_box_pair.T);
+  
+      memcpy(bc[alloc].R, cR, 9*sizeof(double));
+      memcpy(bc[alloc].T, cT, 3*sizeof(double));
+      bc[alloc].b1 = cur_box_pair.b1;
+      bc[alloc].b2 = b2_prev;
+      alloc++;
     }
   }
 
+
+
   return 0;
 }
+
+__device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
+                                      double T[3], double s, int *collision_set,
+                                      int i, int j, int size, box *b10,
+                                      box *b20) {
+                                        return 1;}
+
+//   double U[3];
+
+//   double cR[3][3], cT[3], cs;
+//   // box_container container1[71];
+//   // box_container container2[71];
+//   // container1[0].R = R;
+//   // container1[0].T = T;
+//   // container2[0].R = R;
+//   // container2[0].T = T;
+//   // container1->b = b1;
+//   // container2->b = b2;
+//   int index1 = 0;
+//   int index2 = 0;
+//   int alloc;
+//   int used;
+//   // cudaMemcpy2DArrayToArray(container1[0].R, 0,0,R,
+//   // 0,0,3*sizeof(double),3*sizeof(double));
+//   while (1) {
+//     box_container cc1 = container1[index1];
+//     box_container cc2 = container2[index2];
+//     if (obb_disjoint(R, T, cc1.b->d, cc2.b->d) != 0) {
+//       used++;
+//       continue;
+//     }
+
+//     if (cc1.b->leaf() && cc2.b->leaf()) {
+
+//       if (cuda_tri_contact(cc1.b, cc2.b)) {
+//         collision_set[i * size + j] = 1;
+//         break;
+//       }
+//     }
+
+//     if (cc2.b->leaf() || (!cc1.b->leaf() && (cc1.b->size() > cc2.b->size()))) {
+
+//       box *b1_next = &b10[cc1.b->next_index];
+//       box *b1_prev = &b10[cc1.b->prev_index];
+//       MTxM(cR, b1_next->pR, R);
+//       VmV(U, T, b1_next->pT);
+//       MTxV(cT, b1_next->pR, U);
+
+//       cuda_collide_recursive(b1_next, b2, cR, cT, 1.0, collision_set, i, j,
+//                              size, b10, b20);
+
+//       MTxM(cR, b1_prev->pR, R);
+//       VmV(U, T, b1_prev->pT);
+//       MTxV(cT, b1_prev->pR, U);
+
+//       cuda_collide_recursive(b1_prev, b2, cR, cT, 1.0, collision_set, i, j,
+//                              size, b10, b20);
+
+//     } else {
+//       printf("here 3 %d\n", b2->prev_index);
+//       // here we descend to the children of b2.  See comments for
+//       // other 'if' clause for explanation.
+
+//       box *b2_next = &b20[b2->next_index];
+//       box *b2_prev = &b20[b2->prev_index];
+
+//       MxM(cR, R, b2_next->pR);
+//       sMxVpV(cT, s, R, b2_next->pT, T);
+//       cs = s;
+
+//       cuda_collide_recursive(b1, b2_next, cR, cT, cs, collision_set, i, j, size,
+//                              b10, b20);
+//       MxM(cR, R, b2_prev->pR);
+//       sMxVpV(cT, s, R, b2_prev->pT, T);
+//       cs = s;
+
+//       cuda_collide_recursive(b1, b2_prev, cR, cT, cs, collision_set, i, j, size,
+//                              b10, b20);
+//     }
+//   }
+
+//   return 0;
+// }
 
 int Collide(double R1[3][3], double T1[3], Object *Object_model1,
             double R2[3][3], double T2[3], Object *Object_model2,
@@ -1138,7 +1173,7 @@ int VCInternal::all_Collide(void) // perform collision detection.
 
 int VCInternal::Collide(void) // perform collision detection.
 {
-  //all_Collide();
+  // all_Collide();
   // std::cout<< nbody.overlapping_pairs.size<< std::endl;
   int *dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
