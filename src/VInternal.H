@@ -87,7 +87,7 @@ public:
   int ActivateObject(int id); // activate for collision detection.
   //__global__ void initAABB(int mySize);
 
-  int Collide(void); // perform collision detection.
+  int Collide(int *collide_pair_size, bool *collide_buffer); // perform collision detection.
 
   // report the results of collision detection.
 

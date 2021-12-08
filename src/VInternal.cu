@@ -23,6 +23,11 @@ double Object_ms;
 __device__ double cuda_mR[3][3];
 __device__ double cuda_mT[3];
 
+__host__ __device__ int leaf(box *b) {
+  return (b->prev_index <= 0 && b->next_index <= 0);
+}
+__device__ __host__ double bsize(box *b) { return b->d[0]; }
+
 int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
 
@@ -529,7 +534,7 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
   if (obb_disjoint(R, T, b1->d, b2->d))
     return 0;
 
-  if (b1->leaf() && b2->leaf()) {
+  if (leaf(b1) && leaf(b2)) {
     int code = tri_contact(b1, b2);
     if (code)
       collisions[i * 32 + j] = 1;
@@ -557,7 +562,7 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
     if (obb_disjoint(cur_box_pair.R, cur_box_pair.T, cur_box_pair.b1->d, cur_box_pair.b2->d))
       continue;
       //printf("here 1 %d %d\n", cur_box_pair.b1->next_index, cur_box_pair.b2->next_index);
-    if (cur_box_pair.b1->leaf() && cur_box_pair.b2->leaf()) {
+    if (leaf(cur_box_pair.b1) && leaf(cur_box_pair.b2)) {
       //printf("here 1 %d %d\n", cur_box_pair.b1->next_index, cur_box_pair.b2->next_index);
       int code = tri_contact(cur_box_pair.b1, cur_box_pair.b2);
       if (code){
@@ -566,9 +571,9 @@ int collide_recursive(box *b1, box *b2, double R[3][3], double T[3], double s,
       }
       continue;
     }
-    if (cur_box_pair.b2->leaf() ||
-        (!cur_box_pair.b1->leaf() &&
-         (cur_box_pair.b1->size() > cur_box_pair.b2->size()))) {
+    if (leaf(cur_box_pair.b2) ||
+        (!leaf(cur_box_pair.b1) &&
+         (bsize(cur_box_pair.b1) > bsize(cur_box_pair.b2)))) {
           box *b1_next = &Object_boxes[cur_box_pair.b1->next_index];
           box *b1_prev = &Object_boxes[cur_box_pair.b1->prev_index];
           MTxM(cR, b1_next->pR, cur_box_pair.R);
@@ -1171,8 +1176,9 @@ int VCInternal::all_Collide(void) // perform collision detection.
   return 0;
 }
 
-int VCInternal::Collide(void) // perform collision detection.
+int VCInternal::Collide(int *collide_pair_size, bool *collide_buffer) // perform collision detection.
 {
+  int collide_pair_size_copy = 0;
   // all_Collide();
   // std::cout<< nbody.overlapping_pairs.size<< std::endl;
   int *dev = new int[overlap_count];
@@ -1206,8 +1212,13 @@ int VCInternal::Collide(void) // perform collision detection.
     ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b, collision, i,
               j);
     if (collision[i * 32 + j]) {
+      collide_buffer[i] = true;
+      collide_buffer[j] = true;
+      collide_pair_size_copy += 1;
       printf("collision between object %d, and object %d!\n", i, j);
     }
   }
+
+  *collide_pair_size = collide_pair_size_copy;
   return 0;
 }

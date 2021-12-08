@@ -75,6 +75,9 @@ int main(int argc, char *argv[]) {
   // vc.EndAllObjects();
   // FILE *fp = fopen(argv[2], "r");
 
+  bool reverse_direction[NO_OF_OBJECTS];
+  memset(reverse_direction, false, NO_OF_OBJECTS * sizeof(bool));
+
   for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
   {
     cout << "Simulation step : " << i << "\n";
@@ -116,9 +119,28 @@ int main(int argc, char *argv[]) {
       all_trans[j * 16 + 7] = 0.5 * (i - 3);
     }
 
+    
+    // if collide in the last frame, reverse the direction of the trans
+    for (j = 0; j < NO_OF_OBJECTS; j ++) {
+      all_trans[j * 16 + 3] *= reverse_direction[j]? -1: 1;
+      all_trans[j * 16 + 7] *= reverse_direction[j]? -1: 1;
+      all_trans[j * 16 + 11] *= reverse_direction[j]? -1: 1;
+    }
+
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
 
-    vc.Collide();
+    int size;
+    bool collide_pairs_buffer[NO_OF_OBJECTS];
+    memset(collide_pairs_buffer, false, NO_OF_OBJECTS * sizeof(bool));
+    
+    vc.Collide(&size, collide_pairs_buffer);
+
+    // update reverse_direction for transformation matrix
+    for (j = 0; j < NO_OF_OBJECTS; j ++) {
+      if (collide_pairs_buffer[j]) {
+        reverse_direction[j] = !reverse_direction[j];
+      }
+    }
     
     double dumpStartTime = CycleTimer::currentSeconds();
     // output trans matrix
