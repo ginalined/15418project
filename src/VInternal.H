@@ -83,7 +83,7 @@ const int VCstate_addTri    = 2; //the geometry is being inputted.
 
 class Object;
 //class VCReportType;
-
+class box;
 struct VCReportType
 {
   int id1, id2;
@@ -109,9 +109,8 @@ private:
   int         id;          //the id of the object.
   Object *b;          //RAPID box for the object. This also stores
                            //the geometry of the object.
-  
   double      trans[16]; //the current transformation matrix for the object.
-  int         activation_state; //1=>object is activated, 0=>deactivated.
+  box * cuda_store_box;
 };
 
 
@@ -202,14 +201,13 @@ public:
   double d[3];        // this is "radius", that is, 
                       // half the measure of a side length
 
-  box *P;  // points to but does not "own".  
-  box *N;
-  int prev_index;
-  int next_index;
+
+  int prev_index = -1;
+  int next_index = -1;
 
   tri *trp;
 
-   __host__ __device__ int leaf() { return (!P && !N); } 
+   __host__ __device__ int leaf() { return (prev_index < 0 && next_index < 0); } 
   __device__ __host__ double size() { return d[0]; } 
  
   int split_recurse(int *t, int n);
