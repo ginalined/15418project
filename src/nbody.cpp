@@ -9,7 +9,7 @@
 using namespace std;
 
 const int NO_OF_OBJECTS=32;      //number of instances
-const int SIMULATION_STEPS=3;  //number of steps in the simulation.
+const int SIMULATION_STEPS=10;  //number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 
 const int DATA_DUMP = 0;
@@ -39,6 +39,8 @@ int main(int argc, char *argv[])
   int i;
 
   
+  FILE *fp = fopen(argv[1], "r");
+  fscanf(fp, "%d", &num_tri);
   for (i=0; i<NO_OF_OBJECTS; i++)  //add the objects to the library.
   {
       //cout<<"Reading object "<<i<<"\n";
@@ -46,8 +48,6 @@ int main(int argc, char *argv[])
       vc.NewObject(&(id[i]));
       vs.NewObject(&(id[i]));
       //cout<<"Adding triangles\n";
-      FILE *fp = fopen(argv[1], "r");
-      fscanf(fp, "%d", &num_tri);
       
       for (int j=1; j<=num_tri; j++)
       {
@@ -55,6 +55,7 @@ int main(int argc, char *argv[])
         fscanf(fp, "%lf %lf %lf", &(v1[0]), &(v1[1]), &(v1[2]));
         fscanf(fp, "%lf %lf %lf", &(v2[0]), &(v2[1]), &(v2[2]));
         fscanf(fp, "%lf %lf %lf", &(v3[0]), &(v3[1]), &(v3[2]));
+        // cout << v3[0] << " " << v3[1] << " "<< v3[2] << endl;
         
         vc.AddTri(v1, v2, v3);
 
@@ -66,14 +67,14 @@ int main(int argc, char *argv[])
       }
   //std::cout<<"closing files\n";
       
-      fclose(fp);
-      
       //cout<<"Calling finish_object\n";
       vc.EndObject();
       vs.EndObject();      
       
       cout<<"Inserted object "<<i<<"\n";
     }
+
+    fclose(fp);
 
   
 
@@ -112,12 +113,14 @@ int main(int argc, char *argv[])
     all_trans[j * 16 + 13] = 0;
     all_trans[j * 16 + 14] = 0;
   }
+
   // (along y-axis) half move down, half move up
   for (j = 0; j < NO_OF_OBJECTS/2; j ++) {
-    all_trans[j * 16 + 7] = -0.3;
+    // all_trans[j * 16 + 7] = -0.3 * i + 0.3;
+    all_trans[j * 16 + 7] = -0.5;
   }
   for (; j < NO_OF_OBJECTS; j ++) {
-    all_trans[j * 16 + 7] = 0.3;
+    all_trans[j * 16 + 7] = 0.5;
   }
 
 

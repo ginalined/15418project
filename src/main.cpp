@@ -1,64 +1,13 @@
-/************************************************************************\
-
-  Copyright 1997 The University of North Carolina at Chapel Hill.
-  All Rights Reserved.
-
-  Permission to use, copy, modify and distribute this software
-  and its documentation for educational, research and non-profit
-  purposes, without fee, and without a written agreement is
-  hereby granted, provided that the above copyright notice and
-  the following three paragraphs appear in all copies.
-
-  IN NO EVENT SHALL THE UNIVERSITY OF NORTH CAROLINA AT CHAPEL
-  HILL BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL,
-  INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS,
-  ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION,
-  EVEN IF THE UNIVERSITY OF NORTH CAROLINA HAVE BEEN ADVISED OF
-  THE POSSIBILITY OF SUCH DAMAGES.
-
-
-  Permission to use, copy, modify and distribute this software
-  and its documentation for educational, research and non-profit
-  purposes, without fee, and without a written agreement is
-  hereby granted, provided that the above copyright notice and
-  the following three paragraphs appear in all copies.
-
-  THE UNIVERSITY OF NORTH CAROLINA SPECIFICALLY DISCLAIM ANY
-  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-  PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS IS"
-  BASIS, AND THE UNIVERSITY OF NORTH CAROLINA HAS NO OBLIGATION
-  TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR
-  MODIFICATIONS.
-
-
-   ---------------------------------
-  |Please send all BUG REPORTS to:  |
-  |                                 |
-  |   geom@cs.unc.edu               |
-  |                                 |
-   ---------------------------------
-
-
-  The authors may be contacted via:
-
-  US Mail:  A. Pattekar/J. Cohen/T. Hudson/S. Gottschalk/M. Lin/D. Manocha
-            Department of Computer Science
-            Sitterson Hall, CB #3175
-            University of N. Carolina
-            Chapel Hill, NC 27599-3175
-
-  Phone:    (919)962-1749
-
-  EMail:    geom@cs.unc.edu
-
-\************************************************************************/
-
 #include "VInternal.H"
 #include <iostream>
 #include <stdlib.h>
 //#include "VCollide.H"
+#include "VCScene.h"
 using namespace std;
+
+const int DATA_DUMP = 0;
+const int RENDER_DUMP = 1;
+void startRendererWithDisplay(VCScene* vs, int option, const std::string& frameFilename, int frame);
 
 float toBW(int bytes, float sec) {
   return static_cast<float>(bytes) / (1024. * 1024. * 1024.) / sec;
@@ -72,12 +21,14 @@ int main(int argc, char *argv[]) {
   //   }
   cout << "hello, mp" << endl;
   VCInternal vc(2, 100);
+  VCScene vs(2);
   int id[2];
 
   int i;
   for (i = 0; i < 2; i++) // create both the objects.
   {
     vc.NewObject(&id[i]);
+    vs.NewObject(&(id[i]));
 
     // the geometry is a unit cube with one vertex at the origin.
     double v1[3], v2[3], v3[3];
@@ -93,6 +44,14 @@ int main(int argc, char *argv[]) {
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
 
+    double p1[3], p2[3], p3[3];
+
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
+
     v1[0] = 0;
     v1[1] = 0.5;
     v1[2] = 0.015;
@@ -103,6 +62,12 @@ int main(int argc, char *argv[]) {
     v3[1] = 0.5;
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
+
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
 
     v1[0] = 0;
     v1[1] = 0.5;
@@ -115,6 +80,12 @@ int main(int argc, char *argv[]) {
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
 
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
+
     v1[0] = 0;
     v1[1] = 0.5;
     v1[2] = 0.015;
@@ -125,6 +96,12 @@ int main(int argc, char *argv[]) {
     v3[1] = 0.5;
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
+
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
 
     // lower
 
@@ -139,6 +116,12 @@ int main(int argc, char *argv[]) {
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
 
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
+
     v1[0] = 0;
     v1[1] = 0.5;
     v1[2] = -0.015;
@@ -149,6 +132,12 @@ int main(int argc, char *argv[]) {
     v3[1] = 0.5;
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
+
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
 
     v1[0] = 0;
     v1[1] = 0.5;
@@ -161,6 +150,12 @@ int main(int argc, char *argv[]) {
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
 
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
+
     v1[0] = 0;
     v1[1] = 0.5;
     v1[2] = -0.015;
@@ -172,7 +167,14 @@ int main(int argc, char *argv[]) {
     v3[2] = 1.99019234502e-08;
     vc.AddTri(v1, v2, v3);
 
+        
+        memcpy(&p1, &v1, sizeof(double) * 3);
+        memcpy(&p2, &v2, sizeof(double) * 3);
+        memcpy(&p3, &v3, sizeof(double) * 3);
+        vs.AddTri(p1, p2, p3);
+
     vc.EndObject();
+    vs.EndObject();
   }
 
   double trans0[4][4], trans1[4][4]; // transformation matrices.
@@ -212,6 +214,8 @@ int main(int argc, char *argv[]) {
     vc.UpdateAllTrans(id, 2, all_trans);
 
     vc.Collide();
+
+    startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i);
   }
 
 

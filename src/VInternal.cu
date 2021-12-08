@@ -1497,8 +1497,8 @@ int VCInternal::Collide(void) // perform collision detection.
   //printf("overlapCount %d \n", overlap_count);
   //for(int k = 0; k< overlap_count;k++){
 
-     for(int i = 0; i< 2;i++){
-       for(int j = i+1; j< 2;j++){
+     for(int i = 0; i< 32;i++){
+       for(int j = i+1; j< 32;j++){
       // int val = dev[k];
       // int i = val/size;
       // int j = val%size;

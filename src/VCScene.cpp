@@ -189,7 +189,7 @@ void VCScene::dumpTriangles(FILE *fp) {
             // vc_objects[objIndex]->triList[triIndex] = cur;
 
             if (objIndex == 0 && triIndex == 0) {
-                std::cout << "after trans:\t" << cur.p1[0] << "\t" << cur.p1[1] << "\t" << cur.p2[2] << std::endl;
+                // std::cout << "after trans:\t" << cur.p1[0] << "\t" << cur.p1[1] << "\t" << cur.p2[2] << std::endl;
             }
 
             fprintf(fp, "%lf %lf %lf ", cur.p1[0], cur.p1[1], cur.p1[2]);
