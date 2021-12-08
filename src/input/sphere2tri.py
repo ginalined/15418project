@@ -3,8 +3,8 @@ import math
 
 PI = 3.14159
 THRESHOLD = 0.0001
-SLICE = 4
-STACK = 8
+SLICE = 2
+STACK = 6
 
 SPHERE_2_TRI = \
 "\n\nThis script transfers spheres into triangles.\n\

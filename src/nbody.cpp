@@ -75,6 +75,10 @@ int main(int argc, char *argv[]) {
   // vc.EndAllObjects();
   // FILE *fp = fopen(argv[2], "r");
 
+  double *collision_pos = new double[NO_OF_OBJECTS * 16];
+  bool hasCollide[NO_OF_OBJECTS];     // ever collide before
+  memset(hasCollide, false, NO_OF_OBJECTS * sizeof(bool));
+
   for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
   {
     cout << "Simulation step : " << i << "\n";
@@ -116,9 +120,37 @@ int main(int argc, char *argv[]) {
       all_trans[j * 16 + 7] = 0.5 * (i - 3);
     }
 
+
+     // if collide in the last frame, reverse the direction of the trans
+    for (j = 0; j < NO_OF_OBJECTS; j ++) {
+      // if (j == 0 || j == 16)
+      //   cout << "[" << j << "] before: " << all_trans[j * 16 + 7];
+      if (hasCollide[j]) {
+        all_trans[j * 16 + 3] = 2 * collision_pos[j * 16 + 3] - all_trans[j * 16 + 3];
+        all_trans[j * 16 + 7] = 2 * collision_pos[j * 16 + 7] - all_trans[j * 16 + 7];
+        all_trans[j * 16 + 11] = 2 * collision_pos[j * 16 + 11] - all_trans[j * 16 + 11];
+      }
+      // if (j == 0 || j == 16)
+      //   cout << " after: " << all_trans[j * 16 + 7] << endl;
+    }
+
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
 
-    vc.Collide();
+    int size;
+    bool collide_pairs_buffer[NO_OF_OBJECTS];
+    memset(collide_pairs_buffer, false, NO_OF_OBJECTS * sizeof(bool));
+
+    vc.Collide(&size, collide_pairs_buffer);
+
+    for (j = 0; j < NO_OF_OBJECTS; j ++) {
+      if (collide_pairs_buffer[j]) {
+        hasCollide[j] = true;
+
+        for (int k = 0; k < 16; k ++) {
+          collision_pos[j * 16 + k] = all_trans[k * 16 + k];
+        }
+      }
+    }
     
     double dumpStartTime = CycleTimer::currentSeconds();
     // output trans matrix

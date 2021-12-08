@@ -1487,9 +1487,10 @@ int VCInternal::all_Collide(void) {  // perform collision detection.
 } 
 
 
-int VCInternal::Collide(void) // perform collision detection.
+int VCInternal::Collide(int *collide_pair_size, bool *collide_buffer) // perform collision detection.
 {
 
+  int collide_pair_size_copy = 0;
 
   // std::cout<< nbody.overlapping_pairs.size<< std::endl;
   int* dev = new int[overlap_count];
@@ -1522,9 +1523,13 @@ int VCInternal::Collide(void) // perform collision detection.
                 FIRST_CONTACT);
 
       if (Object_num_contacts != 0) {
+        collide_buffer[i] = true;
+        collide_buffer[j] = true;
+        collide_pair_size_copy += 1;
         printf("collision between object %d, and object %d!\n", i, j);
       
     }}}
     
+  *collide_pair_size = collide_pair_size_copy;
   return 0;
 }
