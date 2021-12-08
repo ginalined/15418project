@@ -116,7 +116,6 @@ int main(int argc, char *argv[])
 
   // (along y-axis) half move down, half move up
   for (j = 0; j < NO_OF_OBJECTS/2; j ++) {
-    // all_trans[j * 16 + 7] = -0.3 * i + 0.3;
     all_trans[j * 16 + 7] = -0.5;
   }
   for (; j < NO_OF_OBJECTS; j ++) {
