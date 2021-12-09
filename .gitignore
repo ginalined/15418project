@@ -1,0 +1,4 @@
+src/*.o
+src/input/*.inp
+src/trans/*.inp
+src/output/*

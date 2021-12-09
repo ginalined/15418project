@@ -1,4 +1,6 @@
 #define DUMP false
+// DUMP is used to dump the input triangles and trans file for simulation
+// purpose
 
 #include "CycleTimer.h"
 #include "VInternal.H"
@@ -62,7 +64,6 @@ int main(int argc, char *argv[]) {
       fscanf(fp, "%lf %lf %lf", &(v1[0]), &(v1[1]), &(v1[2]));
       fscanf(fp, "%lf %lf %lf", &(v2[0]), &(v2[1]), &(v2[2]));
       fscanf(fp, "%lf %lf %lf", &(v3[0]), &(v3[1]), &(v3[2]));
-      // cout << v3[0] << " " << v3[1] << " "<< v3[2] << endl;
 
       vc.AddTri(v1, v2, v3);
 
@@ -76,7 +77,6 @@ int main(int argc, char *argv[]) {
     }
     // std::cout<<"closing files\n";
 
-    // cout<<"Calling finish_object\n";
     vc.EndObject();
 
     // cout << "Inserted object " << i << "\n";
@@ -114,17 +114,14 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    double startTime = CycleTimer::currentSeconds();
-    vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
-    double endTime = CycleTimer::currentSeconds();
-    computeTime += endTime - startTime;
-
     bool collide_pairs_buffer[NO_OF_OBJECTS];
     memset(collide_pairs_buffer, false, NO_OF_OBJECTS * sizeof(bool));
 
-    startTime = CycleTimer::currentSeconds();
+    double startTime = CycleTimer::currentSeconds();
+    vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
+
     vc.all_Collide(collide_pairs_buffer);
-    endTime = CycleTimer::currentSeconds();
+    double endTime = CycleTimer::currentSeconds();
     computeTime += endTime - startTime;
 
     for (j = 0; j < NO_OF_OBJECTS; j++) {

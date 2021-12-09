@@ -1115,7 +1115,7 @@ void VCInternal::all_Collide(bool *collide_buffer) // perform collision detectio
   int collision_count = find_peaks(size * size, collision_set, 1);
   int *dev1 = new int[collision_count];
 
-  printf("count is %d", collision_count);
+  printf("count is %d\n", collision_count);
   cudaMemcpy(dev1, collision_set, sizeof(int) * collision_count,
              cudaMemcpyDeviceToHost);
   for (int i = 0; i < collision_count; i++)
