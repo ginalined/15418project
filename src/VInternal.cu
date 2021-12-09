@@ -274,6 +274,8 @@ int box::split_recurse(int *t, int n) {
   cudaMemcpy(cuda_pr, check_pr, sizeof(double) * 9, cudaMemcpyHostToDevice);
   cudaMemcpy(cuda_min, minval, sizeof(double) * 3, cudaMemcpyHostToDevice);
 
+  delete[] check_pr;
+
   // cudaMalloc(&cuda_moment, sizeof(moment) * n);
   // cudaMalloc(&output, sizeof(int) * n);
 
@@ -281,6 +283,11 @@ int box::split_recurse(int *t, int n) {
   split_cuda<<<BLOCK_SIZE, n/BLOCK_SIZE +1>>>(cuda_box, cuda_key, cuda_tris, n, cuda_pr, cuda_min);
   cudaMemcpy(all_box, cuda_box, sizeof(double) * n * 9, cudaMemcpyDeviceToHost);
   cudaMemcpy(checkMin, cuda_min, sizeof(double) * 3, cudaMemcpyDeviceToHost);
+
+  cudaFree(cuda_pr);
+  cudaFree(cuda_min);
+  cudaFree(cuda_box);
+  cudaFree(cuda_key);
 
   //  for (int k = 0;k < 3;k++){
   //   printf("check difference %f, and %f \n", minval[0], checkMin[0]);
@@ -292,6 +299,8 @@ int box::split_recurse(int *t, int n) {
       maxval[k] = std::max(maxval[k], all_box[j + k + 6]);
     }
   }
+
+  delete[] all_box;
 
   for (i = 0; i < n; i++) {
     in = t[i];
@@ -758,6 +767,7 @@ int sort_AABB(AABB *res, int N, int *overlap) {
 
     // printf("shall print something %d\n", value);
   }
+  cudaFree(output);
   int value = find_peaks(N*N, overlap, 3);
 
   // get_info1(overlap);
@@ -824,7 +834,12 @@ VCInternal::VCInternal(int mySize, int ss) {
   cudaMemcpy(cuda_boxes, boxes, mySize * sizeof(AABB), cudaMemcpyHostToDevice);
 }
 
-VCInternal::~VCInternal() {}
+VCInternal::~VCInternal() {
+  cudaFree(cuda_boxes);
+  cudaFree(overlaps);
+  delete[] boxes;
+  delete[] vc_objects;
+}
 
 void VCInternal::AddObject(int id, Object *b) // add a new object
 {
@@ -957,40 +972,34 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
     memcpy((void *)current->trans, (void *)(&trans[16 * id[j]]),
            16 * sizeof(double));
   }
+
   double *temp;
-  cudaMalloc(&temp, sizeof(double) * total * 17);
-  // cudaMalloc(&temp, sizeof(double) * total * 16);
-  printf("963\n");
+  int TEMP_SIZE = 16;
+  
+  cudaMalloc(&temp, sizeof(double) * total * TEMP_SIZE);
 
-  for (int i = 0; i < 16; i ++)
-    printf("\t%f\n", trans[i]);
+  // memcpy(&cputmp, &trans, sizeof(double) * total * 16);
 
-  cudaMemcpy(temp, trans, sizeof(double) * total * 17, cudaMemcpyHostToDevice);
-  // cudaMemcpy(temp, trans, sizeof(double) * total * 16, cudaMemcpyHostToDevice);
-
-  printf("967\n");
+  cudaMemcpy(temp, trans, sizeof(double) * total * TEMP_SIZE, cudaMemcpyHostToDevice);
 
   cuda_update_trans<<<BLOCK_SIZE, (total / BLOCK_SIZE) + 1>>>(total, temp,
                                                               cuda_boxes);
 
-                                                              printf("972\n");
   cudaDeviceSynchronize();
-
-  printf("970\n");
+  cudaFree(temp);
 
   // EndAllObjects();
 
   cudaMemset(overlaps, 0, (size * size) * sizeof(int));
   // printf("size is %d", size);
 
-  printf("977\n");
 
   overlap_count = sort_AABB(cuda_boxes, size, overlaps);
 
-  printf("981\n");
 
   // cuda_get_collision<<<32, 32>>>(&total, cuda_nbody);
   // cudaDeviceSynchronize();
+
   return 0;
 }
 
@@ -1062,14 +1071,12 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
 
 void VCInternal::all_Collide(bool *collide_buffer) // perform collision detection.
 {
-  printf("1049\n");
   // std::vector<int> collision_pairs;
   int collide_pair_size_copy = 0;
   int *dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
              cudaMemcpyDeviceToHost);
 
-  printf("1056\n");
   // for (int i = 0; i < overlap_count;i++){
   //   printf(" %d ", dev[i]);
   // }
@@ -1085,36 +1092,24 @@ void VCInternal::all_Collide(bool *collide_buffer) // perform collision detectio
     cudaMemcpy(my_cuda_box, vc_objects[i]->cuda_store_box,
              sizeof(box) * Object_boxes_inited, cudaMemcpyHostToDevice);
   }
-  printf("1072\n");
   int *collision_set;
   // printf("first idea %f", vc_objects[0]->cuda_store_box->pT[0]);
   cudaMalloc(&collision_set, sizeof(int) * size * size);
   // print_trans<<<1,1>>>(my_cuda_box);
-  // box * b1;
-  // box* b2;
-  // cudaMalloc(&b1, sizeof(box)*Object_boxes_inited );
-  // cudaMalloc(&b2, sizeof(box)*Object_boxes_inited);
-  // // printf("the initiated object is %d", Object_boxes_inited);
-  // // printf("the value is %f",
-  // vc_objects[current_id]->cuda_store_box[0].pR[1][0]);
-  // cudaMemcpy(b1, vc_objects[0]->cuda_store_box, sizeof(box),
-  // cudaMemcpyHostToDevice);//vc_objects[0]->cuda_store_box;
-  // cudaMemcpy(b2, vc_objects[0]->cuda_store_box, sizeof(box),
-  // cudaMemcpyHostToDevice);
-  // //printf("the diff is %f\n", b1[0].pR[2][1]);
-  // //b2[1] = vc_objects[6]->cuda_store_box;
+
   int object_space = Object_boxes_inited;
   cuda_collide<<<BLOCK_SIZE, overlap_count/BLOCK_SIZE + 1>>>(overlap_count, overlaps, my_cuda_trans, size,
                          my_cuda_box,collision_set, object_space);
 
+  cudaFree(my_cuda_trans);
+  cudaFree(my_cuda_box);
+  cudaFree(collision_set);
 
-  printf("1095\n");
+
 
    //int collision_count = 1024;
    int collision_count = find_peaks(size*size, collision_set, 1);
    int *dev1 = new int[collision_count];
-
-   printf("1101\n");
 
    //printf("count is %d", collision_count);
    cudaMemcpy(dev1, collision_set, sizeof(int) * collision_count,
@@ -1124,8 +1119,7 @@ void VCInternal::all_Collide(bool *collide_buffer) // perform collision detectio
       // collision_pairs.push_back(dev1[i]%size);
       collide_buffer[dev1[i]/size] = true;
       collide_buffer[dev1[i]%size] = true;
-      printf("collision between %d and %d\n", dev1[i]/size, dev1[i]%size);
-      printf("1112\n");
+      // printf("collision between %d and %d\n", dev1[i]/size, dev1[i]%size);
   }
   //printf("\n\n end");
   // return collision_pairs;

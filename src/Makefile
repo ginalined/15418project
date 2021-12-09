@@ -11,7 +11,7 @@ CC_FILES   := nbody.cpp VCScene.cpp display.cpp
 
 ARCH=$(shell uname | sed -e 's/-.*//g')
 
-CXX=g++ -m64
+CXX=g++ -m64 -g
 CXXFLAGS=-O3 -Wall
 LDFLAGS=-L/usr/local/depot/cuda-10.2/lib64/ -lcudart
 NVCC=nvcc

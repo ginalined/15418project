@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  int num_tri;
+  int num_tri = 8;
   VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
   #if DUMP
     VCScene vs(NO_OF_OBJECTS);
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
     for (j=0; j<NO_OF_OBJECTS; j++)
     {
       for (int j1=0; j1<16; j1++){
-        fscanf(fp, "%lf", &(all_trans[j*16+j1]));
+        fscanf(fp, "%lf\n", &(all_trans[j*16+j1]));
       }
     }
     
@@ -109,9 +109,7 @@ int main(int argc, char *argv[]) {
     }
 
     double startTime = CycleTimer::currentSeconds();
-    cout << "115\n";
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
-    cout << "120\n";
     double endTime = CycleTimer::currentSeconds();
     computeTime += endTime - startTime;
 
@@ -123,8 +121,6 @@ int main(int argc, char *argv[]) {
     endTime = CycleTimer::currentSeconds();
     computeTime += endTime - startTime;
 
-    cout << "132\n";
-
     for (j = 0; j < NO_OF_OBJECTS; j ++) {
       if (collide_pairs_buffer[j]) {
         hasCollide[j] = true;
@@ -135,22 +131,27 @@ int main(int argc, char *argv[]) {
       }
     }
     
+    #if DUMP
     // output trans matrix
     for (j = 0; j < NO_OF_OBJECTS; j++) {
       double *per_trans = new double[16];
       for (int jtrans = j * 16; jtrans < (j + 1) * 16; jtrans++) {
         per_trans[jtrans - (j * 16)] = all_trans[jtrans];
       }
-      #if DUMP
+      
       vs.UpdateTrans(id[j], per_trans);
-      #endif
     }
-    fclose(fp);
+    #endif
+
+    delete(all_trans);
     #if DUMP
     startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i, num_tri);
     #endif
   }
 
+
+  fclose(fp);
+  delete[] collision_pos;
   
   // double seconds = difftime(endtime, now);
   printf ("%.5f running time\n", computeTime);
