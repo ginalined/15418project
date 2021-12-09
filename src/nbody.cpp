@@ -8,7 +8,7 @@
 #include "VCScene.h"
 using namespace std;
 
-const int NO_OF_OBJECTS = 32;    // number of instances
+const int NO_OF_OBJECTS = 1024;    // number of instances
 const int SIMULATION_STEPS = 10; // number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 
@@ -19,8 +19,7 @@ void startRendererWithDisplay(VCScene *vs, int option,
 
 int main(int argc, char *argv[]) {
 
-  double startTime = CycleTimer::currentSeconds();
-  double dumpTime = 0;
+  double computeTime = 0;
 
   if (argc != 3) {
     cerr << argv[0] << ": USAGE: " << argv[0]
@@ -30,7 +29,7 @@ int main(int argc, char *argv[]) {
 
   int num_tri;
   VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
-  VCScene vs(NO_OF_OBJECTS);
+  // VCScene vs(NO_OF_OBJECTS);
   int id[NO_OF_OBJECTS];
 
   int i;
@@ -43,7 +42,7 @@ int main(int argc, char *argv[]) {
     // cout<<"Reading object "<<i<<"\n";
 
     vc.NewObject(&(id[i]));
-    vs.NewObject(&(id[i]));
+    // vs.NewObject(&(id[i]));
     // cout<<"Adding triangles\n";
 
     for (int j = 1; j <= num_tri; j++) {
@@ -55,18 +54,18 @@ int main(int argc, char *argv[]) {
 
       vc.AddTri(v1, v2, v3);
 
-      double p1[3], p2[3], p3[3];
-      memcpy(&p1, &v1, sizeof(double) * 3);
-      memcpy(&p2, &v2, sizeof(double) * 3);
-      memcpy(&p3, &v3, sizeof(double) * 3);
-      vs.AddTri(p1, p2, p3);
+      // double p1[3], p2[3], p3[3];
+      // memcpy(&p1, &v1, sizeof(double) * 3);
+      // memcpy(&p2, &v2, sizeof(double) * 3);
+      // memcpy(&p3, &v3, sizeof(double) * 3);
+      // vs.AddTri(p1, p2, p3);
     }
     // std::cout<<"closing files\n";
 
     // cout<<"Calling finish_object\n";
     vc.EndObject();
 
-    cout << "Inserted object " << i << "\n";
+    // cout << "Inserted object " << i << "\n";
   }
 
   fclose(fp);
@@ -91,6 +90,8 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    cout << "93\n";
+
      // if collide in the last frame, reverse the direction of the trans
     for (j = 0; j < NO_OF_OBJECTS; j ++) {
       if (hasCollide[j]) {
@@ -100,13 +101,25 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    double startTime = CycleTimer::currentSeconds();
+    cout << "105\n";
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
+    cout << "107\n";
+    double endTime = CycleTimer::currentSeconds();
+    computeTime += endTime - startTime;
 
     int size;
     bool collide_pairs_buffer[NO_OF_OBJECTS];
     memset(collide_pairs_buffer, false, NO_OF_OBJECTS * sizeof(bool));
 
+    cout << "117\n";
+
+    startTime = CycleTimer::currentSeconds();
     vc.Collide(&size, collide_pairs_buffer);
+    endTime = CycleTimer::currentSeconds();
+    computeTime += endTime - startTime;
+
+    cout << "124\n";
 
     for (j = 0; j < NO_OF_OBJECTS; j ++) {
       if (collide_pairs_buffer[j]) {
@@ -118,23 +131,20 @@ int main(int argc, char *argv[]) {
       }
     }
     
-    double dumpStartTime = CycleTimer::currentSeconds();
     // output trans matrix
     for (j = 0; j < NO_OF_OBJECTS; j++) {
       double *per_trans = new double[16];
       for (int jtrans = j * 16; jtrans < (j + 1) * 16; jtrans++) {
         per_trans[jtrans - (j * 16)] = all_trans[jtrans];
       }
-      vs.UpdateTrans(id[j], per_trans);
+      // vs.UpdateTrans(id[j], per_trans);
     }
-    startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i, num_tri);
-    dumpTime += CycleTimer::currentSeconds() - dumpStartTime;
+    // startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i, num_tri);
   }
 
-  double endTime = CycleTimer::currentSeconds();
-  std::cout << endTime - startTime - dumpTime << std::endl;
+  
   // double seconds = difftime(endtime, now);
-  // printf ("%.f running time\n", seconds);
+  printf ("%.f running time\n", computeTime);
   // cout<<" Finish Detected collision between objects\n";
 
   return 0;

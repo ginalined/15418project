@@ -1123,19 +1123,25 @@ static inline int nextPow2(int n) {
 
 int get_info(AABB *input) {
 
-  AABB *temp = new AABB[32];
-  cudaMemcpy(temp, input, 32 * sizeof(AABB), cudaMemcpyDeviceToHost);
+  // AABB *temp = new AABB[32];
+  // cudaMemcpy(temp, input, 32 * sizeof(AABB), cudaMemcpyDeviceToHost);
+  AABB *temp = new AABB[1024];
+  cudaMemcpy(temp, input, 1024 * sizeof(AABB), cudaMemcpyDeviceToHost);
   printf("no way!\n");
-  for (int i = 0; i < 32; i++)
+  // for (int i = 0; i < 32; i++)
+  for (int i = 0; i < 1024; i++)
     printf("the idea is that %f, %d\n", temp[i].center[0], temp[i].id);
   return 0;
 }
 int get_info1(int *input) {
 
-  int *temp = new int[32];
-  cudaMemcpy(temp, input, 32 * sizeof(int), cudaMemcpyDeviceToHost);
+  // int *temp = new int[32];
+  // cudaMemcpy(temp, input, 32 * sizeof(int), cudaMemcpyDeviceToHost);
+  int *temp = new int[1024];
+  cudaMemcpy(temp, input, 1024 * sizeof(int), cudaMemcpyDeviceToHost);
   printf("no way!\n");
-  for (int i = 0; i < 32; i++)
+  // for (int i = 0; i < 32; i++)
+  for (int i = 0; i < 1024; i++)
     printf("the idea is that %d\n", temp[i]);
   return 0;
 }
@@ -1222,9 +1228,12 @@ int sort_AABB(AABB *res, int N, int *overlap) {
     // for (int i = 0; i < 1024;i++){
     //   printf("%d ", dev[i]);
     // }
-    AABB* dev = new AABB[32];
+    // AABB* dev = new AABB[32];
   
-    cudaMemcpy(dev, res, sizeof(AABB)*32, cudaMemcpyDeviceToHost);
+    // cudaMemcpy(dev, res, sizeof(AABB)*32, cudaMemcpyDeviceToHost);
+    AABB* dev = new AABB[1024];
+  
+    cudaMemcpy(dev, res, sizeof(AABB)*1024, cudaMemcpyDeviceToHost);
     // for (int i = 0; i < 32;i++){
     //   printf("%f %d, \n", dev[i].lo.val[dim], dev[i].id);
     // }
@@ -1238,7 +1247,8 @@ int sort_AABB(AABB *res, int N, int *overlap) {
     
     //printf("shall print something %d\n", value);
   }
-  int value = find_peaks(32*32, overlap);
+  // int value = find_peaks(32*32, overlap);
+  int value = find_peaks(1024*1024, overlap);
 
   //get_info1(overlap);
   return value;
@@ -1498,8 +1508,10 @@ int VCInternal::Collide(int *collide_pair_size, bool *collide_buffer) // perform
   //printf("overlapCount %d \n", overlap_count);
   //for(int k = 0; k< overlap_count;k++){
 
-     for(int i = 0; i< 32;i++){
-       for(int j = i+1; j< 32;j++){
+    //  for(int i = 0; i< 32;i++){
+    //    for(int j = i+1; j< 32;j++){
+     for(int i = 0; i< 1024;i++){
+       for(int j = i+1; j< 1024;j++){
       // int val = dev[k];
       // int i = val/size;
       // int j = val%size;

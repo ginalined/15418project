@@ -3,8 +3,8 @@ import math
 
 PI = 3.14159
 THRESHOLD = 0.0001
-SLICE = 2
-STACK = 6
+SLICE = 4
+STACK = 8
 
 SPHERE_2_TRI = \
 "\n\nThis script transfers spheres into triangles.\n\
@@ -237,5 +237,5 @@ def head():
             op.write("\n")
 
 
-# sphere2tri()
-head()
+sphere2tri()
+# head()

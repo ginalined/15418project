@@ -1,7 +1,8 @@
 #!/usr/bin/python
+from random import random
 
 FRAME_NUM = 10
-OBJ_NUM = 32
+OBJ_NUM = 1024
 
 def generate_matrix(offset):
     matrix = []
@@ -24,6 +25,9 @@ def move_alone_y(stride):
 def move_alone_z(stride):
     return generate_matrix([0, 0, stride])
 
+def rand_move():
+    return generate_matrix([random(), random(), random()])
+
 def print_matrix(matrix, fp):
     for dp in matrix:
         fp.write(str(dp) + "\n")
@@ -45,4 +49,20 @@ The two batch of objects collide once with each other in the middle.\n\n"
         for j in range(OBJ_NUM/2):
             print_matrix(move_alone_y(float(0.25 * i)), op)
 
-two_batch()
+def rand_mov():
+    description = "\n\n\
+This case generates random movements.\n\n"
+    print(description)
+
+    op = open("rand.inp", "w")
+
+    for i in range(FRAME_NUM):
+        # half move downward
+        for j in range(OBJ_NUM/2):
+            print_matrix(move_alone_y(float(-0.25 * i)), op)
+        # half move upward
+        for j in range(OBJ_NUM/2):
+            print_matrix(move_alone_y(float(0.25 * i)), op)
+
+# two_batch()
+rand_mov()
