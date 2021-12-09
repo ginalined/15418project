@@ -959,19 +959,35 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
   }
   double *temp;
   cudaMalloc(&temp, sizeof(double) * total * 17);
+  // cudaMalloc(&temp, sizeof(double) * total * 16);
+  printf("963\n");
+
+  for (int i = 0; i < 16; i ++)
+    printf("\t%f\n", trans[i]);
 
   cudaMemcpy(temp, trans, sizeof(double) * total * 17, cudaMemcpyHostToDevice);
+  // cudaMemcpy(temp, trans, sizeof(double) * total * 16, cudaMemcpyHostToDevice);
+
+  printf("967\n");
 
   cuda_update_trans<<<BLOCK_SIZE, (total / BLOCK_SIZE) + 1>>>(total, temp,
                                                               cuda_boxes);
+
+                                                              printf("972\n");
   cudaDeviceSynchronize();
+
+  printf("970\n");
 
   // EndAllObjects();
 
   cudaMemset(overlaps, 0, (size * size) * sizeof(int));
   // printf("size is %d", size);
 
+  printf("977\n");
+
   overlap_count = sort_AABB(cuda_boxes, size, overlaps);
+
+  printf("981\n");
 
   // cuda_get_collision<<<32, 32>>>(&total, cuda_nbody);
   // cudaDeviceSynchronize();
@@ -1044,13 +1060,16 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
 }
 
 
-std::vector<int> VCInternal::all_Collide(void) // perform collision detection.
+void VCInternal::all_Collide(bool *collide_buffer) // perform collision detection.
 {
-
-  std::vector<int> collision_pairs;
+  printf("1049\n");
+  // std::vector<int> collision_pairs;
+  int collide_pair_size_copy = 0;
   int *dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
              cudaMemcpyDeviceToHost);
+
+  printf("1056\n");
   // for (int i = 0; i < overlap_count;i++){
   //   printf(" %d ", dev[i]);
   // }
@@ -1066,7 +1085,7 @@ std::vector<int> VCInternal::all_Collide(void) // perform collision detection.
     cudaMemcpy(my_cuda_box, vc_objects[i]->cuda_store_box,
              sizeof(box) * Object_boxes_inited, cudaMemcpyHostToDevice);
   }
-  
+  printf("1072\n");
   int *collision_set;
   // printf("first idea %f", vc_objects[0]->cuda_store_box->pT[0]);
   cudaMalloc(&collision_set, sizeof(int) * size * size);
@@ -1089,19 +1108,26 @@ std::vector<int> VCInternal::all_Collide(void) // perform collision detection.
                          my_cuda_box,collision_set, object_space);
 
 
+  printf("1095\n");
 
    //int collision_count = 1024;
    int collision_count = find_peaks(size*size, collision_set, 1);
    int *dev1 = new int[collision_count];
+
+   printf("1101\n");
+
    //printf("count is %d", collision_count);
    cudaMemcpy(dev1, collision_set, sizeof(int) * collision_count,
              cudaMemcpyDeviceToHost);
     for (int i = 0; i < collision_count;i++){
-      collision_pairs.push_back(dev1[i]/size);
-      collision_pairs.push_back(dev1[i]%size);
+      // collision_pairs.push_back(dev1[i]/size);
+      // collision_pairs.push_back(dev1[i]%size);
+      collide_buffer[dev1[i]/size] = true;
+      collide_buffer[dev1[i]%size] = true;
       printf("collision between %d and %d\n", dev1[i]/size, dev1[i]%size);
+      printf("1112\n");
   }
   //printf("\n\n end");
-  return collision_pairs;
+  // return collision_pairs;
 }
 
