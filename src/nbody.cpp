@@ -1,17 +1,20 @@
+#define DUMP false
+
 #include "CycleTimer.h"
 #include "VInternal.H"
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-//#include "VCollide.H"
-#include "VCScene.h"
 #include <vector>
+
+#if DUMP
+#include "VCScene.h"
+#endif
+
 using namespace std;
 
-#define DUMP false
-
-const int NO_OF_OBJECTS = 1024;    // number of instances
+const int NO_OF_OBJECTS = 1024;  // number of instances
 const int SIMULATION_STEPS = 10; // number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 
@@ -19,7 +22,8 @@ const int SCREEN_SIZE = 100;
 const int DATA_DUMP = 0;
 const int RENDER_DUMP = 1;
 void startRendererWithDisplay(VCScene *vs, int option,
-                              const std::string &frameFilename, int frame, int num_tri);
+                              const std::string &frameFilename, int frame,
+                              int num_tri);
 #endif
 
 int main(int argc, char *argv[]) {
@@ -34,9 +38,9 @@ int main(int argc, char *argv[]) {
 
   int num_tri = 8;
   VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
-  #if DUMP
-    VCScene vs(NO_OF_OBJECTS);
-  #endif
+#if DUMP
+  VCScene vs(NO_OF_OBJECTS);
+#endif
   int id[NO_OF_OBJECTS];
 
   int i;
@@ -48,9 +52,9 @@ int main(int argc, char *argv[]) {
     // cout<<"Reading object "<<i<<"\n";
 
     vc.NewObject(&(id[i]));
-    #if DUMP
+#if DUMP
     vs.NewObject(&(id[i]));
-    #endif
+#endif
     // cout<<"Adding triangles\n";
 
     for (int j = 1; j <= num_tri; j++) {
@@ -62,13 +66,13 @@ int main(int argc, char *argv[]) {
 
       vc.AddTri(v1, v2, v3);
 
-      #if DUMP
+#if DUMP
       double p1[3], p2[3], p3[3];
       memcpy(&p1, &v1, sizeof(double) * 3);
       memcpy(&p2, &v2, sizeof(double) * 3);
       memcpy(&p3, &v3, sizeof(double) * 3);
       vs.AddTri(p1, p2, p3);
-      #endif
+#endif
     }
     // std::cout<<"closing files\n";
 
@@ -83,7 +87,7 @@ int main(int argc, char *argv[]) {
   fp = fopen(argv[2], "r");
 
   double *collision_pos = new double[NO_OF_OBJECTS * 16];
-  bool hasCollide[NO_OF_OBJECTS];     // ever collide before
+  bool hasCollide[NO_OF_OBJECTS]; // ever collide before
   memset(hasCollide, false, NO_OF_OBJECTS * sizeof(bool));
 
   for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
@@ -92,19 +96,21 @@ int main(int argc, char *argv[]) {
     int j;
     double *all_trans = new double[NO_OF_OBJECTS * 16];
 
-    for (j=0; j<NO_OF_OBJECTS; j++)
-    {
-      for (int j1=0; j1<16; j1++){
-        fscanf(fp, "%lf\n", &(all_trans[j*16+j1]));
+    for (j = 0; j < NO_OF_OBJECTS; j++) {
+      for (int j1 = 0; j1 < 16; j1++) {
+        fscanf(fp, "%lf\n", &(all_trans[j * 16 + j1]));
       }
     }
-    
-     // if collide in the last frame, reverse the direction of the trans
-    for (j = 0; j < NO_OF_OBJECTS; j ++) {
+
+    // if collide in the last frame, reverse the direction of the trans
+    for (j = 0; j < NO_OF_OBJECTS; j++) {
       if (hasCollide[j]) {
-        all_trans[j * 16 + 3] = 2 * collision_pos[j * 16 + 3] - all_trans[j * 16 + 3];
-        all_trans[j * 16 + 7] = 2 * collision_pos[j * 16 + 7] - all_trans[j * 16 + 7];
-        all_trans[j * 16 + 11] = 2 * collision_pos[j * 16 + 11] - all_trans[j * 16 + 11];
+        all_trans[j * 16 + 3] =
+            2 * collision_pos[j * 16 + 3] - all_trans[j * 16 + 3];
+        all_trans[j * 16 + 7] =
+            2 * collision_pos[j * 16 + 7] - all_trans[j * 16 + 7];
+        all_trans[j * 16 + 11] =
+            2 * collision_pos[j * 16 + 11] - all_trans[j * 16 + 11];
       }
     }
 
@@ -121,40 +127,39 @@ int main(int argc, char *argv[]) {
     endTime = CycleTimer::currentSeconds();
     computeTime += endTime - startTime;
 
-    for (j = 0; j < NO_OF_OBJECTS; j ++) {
+    for (j = 0; j < NO_OF_OBJECTS; j++) {
       if (collide_pairs_buffer[j]) {
         hasCollide[j] = true;
 
-        for (int k = 0; k < 16; k ++) {
+        for (int k = 0; k < 16; k++) {
           collision_pos[j * 16 + k] = all_trans[k * 16 + k];
         }
       }
     }
-    
-    #if DUMP
+
+#if DUMP
     // output trans matrix
     for (j = 0; j < NO_OF_OBJECTS; j++) {
       double *per_trans = new double[16];
       for (int jtrans = j * 16; jtrans < (j + 1) * 16; jtrans++) {
         per_trans[jtrans - (j * 16)] = all_trans[jtrans];
       }
-      
+
       vs.UpdateTrans(id[j], per_trans);
     }
-    #endif
+#endif
 
-    delete(all_trans);
-    #if DUMP
+    delete (all_trans);
+#if DUMP
     startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i, num_tri);
-    #endif
+#endif
   }
-
 
   fclose(fp);
   delete[] collision_pos;
-  
+
   // double seconds = difftime(endtime, now);
-  printf ("%.5f running time\n", computeTime);
+  printf("%.5f running time\n", computeTime);
   // cout<<" Finish Detected collision between objects\n";
 
   return 0;
