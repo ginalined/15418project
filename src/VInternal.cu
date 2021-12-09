@@ -295,7 +295,7 @@ int box::split_recurse(int *t, int n)
   delete[] check_pr;
 
   double checkMin[3];
-  split_cuda<<<BLOCK_SIZE, n / BLOCK_SIZE + 1> > >(cuda_box, cuda_key, cuda_tris, n, cuda_pr, cuda_min);
+  split_cuda<<<BLOCK_SIZE, n / BLOCK_SIZE + 1>>>(cuda_box, cuda_key, cuda_tris, n, cuda_pr, cuda_min);
   cudaMemcpy(all_box, cuda_box, sizeof(double) * n * 9, cudaMemcpyDeviceToHost);
   cudaMemcpy(checkMin, cuda_min, sizeof(double) * 3, cudaMemcpyDeviceToHost);
 
@@ -793,13 +793,13 @@ int sort_AABB(AABB *res, int N, int *overlap)
   {
     while (sort_block <= N)
     {
-      MergeSort<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1> > >(res, sort_block, output,
+      MergeSort<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1>>>(res, sort_block, output,
                                                         N, dim);
       cudaDeviceSynchronize();
       sort_block *= 2;
     }
 
-    findOverlap<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1> > >(res, 1, overlap, N, dim);
+    findOverlap<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1>>>(res, 1, overlap, N, dim);
 
     cudaDeviceSynchronize();
   }
@@ -1005,7 +1005,7 @@ int VCInternal::UpdateAllTrans(int id[], int total, double *trans)
 
   cudaMemcpy(temp, trans, sizeof(double) * total * TEMP_SIZE, cudaMemcpyHostToDevice);
 
-  cuda_update_trans<<<BLOCK_SIZE, (total / BLOCK_SIZE) + 1> > >(total, temp,
+  cuda_update_trans<<<BLOCK_SIZE, (total / BLOCK_SIZE) + 1>>>(total, temp,
                                                                 cuda_boxes);
 
   cudaDeviceSynchronize();
@@ -1104,7 +1104,7 @@ void VCInternal::all_Collide(bool *collide_buffer) // perform collision detectio
   cudaMalloc(&collision_set, sizeof(int) * size * size);
 
   int object_space = Object_boxes_inited;
-  cuda_collide<<<BLOCK_SIZE, overlap_count / BLOCK_SIZE + 1> > >(overlap_count, overlaps, my_cuda_trans, size,
+  cuda_collide<<<BLOCK_SIZE, overlap_count / BLOCK_SIZE + 1>>>(overlap_count, overlaps, my_cuda_trans, size,
                                                                  my_cuda_box, collision_set, object_space);
 
   cudaFree(my_cuda_trans);
