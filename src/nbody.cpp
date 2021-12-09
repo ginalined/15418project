@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 
   FILE *fp = fopen(argv[1], "r");
   fscanf(fp, "%d", &num_tri);
-  cout << "num_tri = " << num_tri << endl;
+
   for (i = 0; i < NO_OF_OBJECTS; i++) // add the objects to the library.
   {
     // cout<<"Reading object "<<i<<"\n";
@@ -65,7 +65,6 @@ int main(int argc, char *argv[]) {
 
     // cout<<"Calling finish_object\n";
     vc.EndObject();
-    // vs.EndObject();
 
     cout << "Inserted object " << i << "\n";
   }
@@ -73,7 +72,7 @@ int main(int argc, char *argv[]) {
   fclose(fp);
 
   // vc.EndAllObjects();
-  // FILE *fp = fopen(argv[2], "r");
+  fp = fopen(argv[2], "r");
 
   double *collision_pos = new double[NO_OF_OBJECTS * 16];
   bool hasCollide[NO_OF_OBJECTS];     // ever collide before
@@ -85,53 +84,20 @@ int main(int argc, char *argv[]) {
     int j;
     double *all_trans = new double[NO_OF_OBJECTS * 16];
 
-    //     for (j=0; j<NO_OF_OBJECTS; j++)
-    // {
-    //   for (int j1=0; j1<16; j1++){
-    //     fscanf(fp, "%lf", &(all_trans[j*16+j1]));
-    //   }
-    // }
-
-    for (j = 0; j < NO_OF_OBJECTS; j++) {
-      all_trans[j * 16] = 1;
-      all_trans[j * 16 + 5] = 1;
-      all_trans[j * 16 + 10] = 1;
-      all_trans[j * 16 + 15] = 1;
-
-      all_trans[j * 16 + 1] = 0;
-      all_trans[j * 16 + 2] = 0;
-      all_trans[j * 16 + 3] = 0;
-      all_trans[j * 16 + 4] = 0;
-      all_trans[j * 16 + 6] = 0;
-      all_trans[j * 16 + 7] = 0;
-      all_trans[j * 16 + 8] = 0;
-      all_trans[j * 16 + 9] = 0;
-      all_trans[j * 16 + 11] = 0;
-      all_trans[j * 16 + 12] = 0;
-      all_trans[j * 16 + 13] = 0;
-      all_trans[j * 16 + 14] = 0;
+    for (j=0; j<NO_OF_OBJECTS; j++)
+    {
+      for (int j1=0; j1<16; j1++){
+        fscanf(fp, "%lf", &(all_trans[j*16+j1]));
+      }
     }
-
-    // (along y-axis) half move down, half move up
-    for (j = 0; j < NO_OF_OBJECTS / 2; j++) {
-      all_trans[j * 16 + 7] = -0.5 * (i - 3);
-    }
-    for (; j < NO_OF_OBJECTS; j++) {
-      all_trans[j * 16 + 7] = 0.5 * (i - 3);
-    }
-
 
      // if collide in the last frame, reverse the direction of the trans
     for (j = 0; j < NO_OF_OBJECTS; j ++) {
-      // if (j == 0 || j == 16)
-      //   cout << "[" << j << "] before: " << all_trans[j * 16 + 7];
       if (hasCollide[j]) {
         all_trans[j * 16 + 3] = 2 * collision_pos[j * 16 + 3] - all_trans[j * 16 + 3];
         all_trans[j * 16 + 7] = 2 * collision_pos[j * 16 + 7] - all_trans[j * 16 + 7];
         all_trans[j * 16 + 11] = 2 * collision_pos[j * 16 + 11] - all_trans[j * 16 + 11];
       }
-      // if (j == 0 || j == 16)
-      //   cout << " after: " << all_trans[j * 16 + 7] << endl;
     }
 
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
