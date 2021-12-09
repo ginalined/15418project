@@ -775,12 +775,12 @@ __global__ void mark_peaks_kernel(int *data, int length, int *device_output) {
     }
 }
 
-__global__ void reassign(int N, int *data) {
+__global__ void reassign(int N, int *data, int dim) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index >= N)  return;
 
-    if (data[index]==3) {
+    if (data[index]==dim) {
         data[index] = 1;
     }else{
     	data[index] = 0;
@@ -796,12 +796,12 @@ __global__ void distribute_kernel(int N, int *arr) {
     }  
 }
 
-void exclusive_scan(int* device_data, int length)
+void exclusive_scan(int* device_data, int length, int dim)
 {
   const int threadsPerBlock = 128;
     const int blocks = (length + threadsPerBlock - 1) / threadsPerBlock;
     // upsweep phase
-    reassign<<<blocks, threadsPerBlock>>>(length, device_data);
+    reassign<<<blocks, threadsPerBlock>>>(length, device_data, dim);
     for (int twod = 1; twod < length; twod = twod << 1) {
         exclusive_scan_up_sweep_kernel<<<blocks, threadsPerBlock>>>(length, twod, device_data, twod << 1);
     }
@@ -1139,7 +1139,7 @@ __host__ __device__ int tri_contact(double *P1, double *P2, double *P3, double *
 }
 
 
-int find_peaks(int length, int *device_output) {
+int find_peaks(int length, int *device_output, int dim) {
    
     if (length <= 2)    return 0;
     //printf("length is %d", length);
@@ -1148,7 +1148,7 @@ int find_peaks(int length, int *device_output) {
     const int blocks = (length + threadsPerBlock - 1) / threadsPerBlock;
    
   
-    exclusive_scan(device_output, length);
+    exclusive_scan(device_output, length, dim);
      
     
     int result = 0;

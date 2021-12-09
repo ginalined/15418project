@@ -4,12 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <vector>
 //#include "VCollide.H"
 
 using namespace std;
 
-const int NO_OF_OBJECTS = 32;    // number of instances
-const int SIMULATION_STEPS = 4; // number of steps in the simulation.
+const int NO_OF_OBJECTS = 1024;    // number of instances
+const int SIMULATION_STEPS = 20; // number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 
 const int DATA_DUMP = 0;
@@ -134,20 +135,8 @@ int main(int argc, char *argv[]) {
 
   // vc.EndAllObjects();
   // FILE *fp = fopen(argv[2], "r");
-
-  for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
-  {
-    cout << "Simulation step : " << i << "\n";
-    int j;
-    double *all_trans = new double[NO_OF_OBJECTS * 16];
-
-    //     for (j=0; j<NO_OF_OBJECTS; j++)
-    // {
-    //   for (int j1=0; j1<16; j1++){
-    //     fscanf(fp, "%lf", &(all_trans[j*16+j1]));
-    //   }
-    // }
-
+  double *all_trans = new double[NO_OF_OBJECTS * 16];
+  int j;
     for (j = 0; j < NO_OF_OBJECTS; j++) {
       all_trans[j * 16] = 1;
       all_trans[j * 16 + 5] = 1;
@@ -167,18 +156,34 @@ int main(int argc, char *argv[]) {
       all_trans[j * 16 + 13] = 0;
       all_trans[j * 16 + 14] = 0;
     }
-
-    // (along y-axis) half move down, half move up
     for (j = 0; j < NO_OF_OBJECTS / 2; j++) {
       all_trans[j * 16 + 3] = 5;
     }
     for (; j < NO_OF_OBJECTS; j++) {
       all_trans[j * 16 + 3] = -5;
     }
+  for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
+  {
+    cout << "Simulation step : " << i << "\n";
+
+    
+
+    //     for (j=0; j<NO_OF_OBJECTS; j++)
+    // {
+    //   for (int j1=0; j1<16; j1++){
+    //     fscanf(fp, "%lf", &(all_trans[j*16+j1]));
+    //   }
+    // }
+
+    // (along y-axis) half move down, half move up
+
 
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
 
-    vc.Collide();
+    std::vector<int>result = vc.all_Collide();
+    for (int k = 0;k<result.size();k++){
+      all_trans[result[k]*16+3] = -all_trans[result[k]*16+3];
+    }
     
     double dumpStartTime = CycleTimer::currentSeconds();
     // output trans matrix

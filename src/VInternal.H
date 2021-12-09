@@ -73,6 +73,7 @@ Description: This file declares three classes - VCReportType,
 
 
 #include "NBody.H"
+#include <vector>
 //state in which VCollide is:
 const int VCstate_default   = 0; //default state
 const int VCstate_newObject = 1; //a new object has been created but its
@@ -157,7 +158,7 @@ public:
    int UpdateAllTrans(int id[], int total, double * trans);
   void AddObject(int id, Object *b);
   int EndAllObjects(void); 
-  int all_Collide(void);
+  std::vector<int>  all_Collide(void);
                           //update the transformation matrix of
                           //the object.
   int ActivateObject(int id);       //activate for collision detection.
