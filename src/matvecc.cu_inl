@@ -775,11 +775,23 @@ __global__ void mark_peaks_kernel(int *data, int length, int *device_output) {
     }
 }
 
+__global__ void reassign(int N, int *data) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index >= N)  return;
+
+    if (data[index]==3) {
+        data[index] = 1;
+    }else{
+    	data[index] = 0;
+    }
+}
+
 __global__ void distribute_kernel(int N, int *arr) {
     //compute overall index from position of thread in current block,
     //and given the block we are in
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if(i!=0 && i<=N-1 && arr[i-1] < arr[i]){
+    if(i!=0 && i<=N-1 && arr[i-1] < arr[i] ){
         arr[arr[i-1]] = i-1;
     }  
 }
@@ -789,6 +801,7 @@ void exclusive_scan(int* device_data, int length)
   const int threadsPerBlock = 128;
     const int blocks = (length + threadsPerBlock - 1) / threadsPerBlock;
     // upsweep phase
+    reassign<<<blocks, threadsPerBlock>>>(length, device_data);
     for (int twod = 1; twod < length; twod = twod << 1) {
         exclusive_scan_up_sweep_kernel<<<blocks, threadsPerBlock>>>(length, twod, device_data, twod << 1);
     }
@@ -1134,15 +1147,13 @@ int find_peaks(int length, int *device_output) {
     const int threadsPerBlock = 128;
     const int blocks = (length + threadsPerBlock - 1) / threadsPerBlock;
    
-    
-
+  
     exclusive_scan(device_output, length);
      
     
     int result = 0;
     cudaMemcpy(&result, device_output + (length - 1), sizeof(int), cudaMemcpyDeviceToHost);
     
-
     
     distribute_kernel<<<blocks, threadsPerBlock>>>(length, device_output);
       

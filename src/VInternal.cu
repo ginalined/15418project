@@ -851,18 +851,17 @@ __global__ void findOverlap(AABB *input, int batchSize, int *overlap, int total,
 
       if (input[i].hi.val[dim] < input[j].lo.val[dim])
         break;
-      overlap[input[i].id * total + input[j].id] = 1;
-      // printf("index is %d, %d, %d\n", input[i].id ,input[j].id, input[i].id
-      // *total + input[j].id);
-    }
+      overlap[input[i].id * total + input[j].id] += 1;
 
-    for (int j = i - 1; j >= 0; j--) {
+      //printf("index is %f, %f, \n", input[i].hi.val[dim], input[j].lo.val[dim]);
 
-      if (input[i].lo.val[dim] > input[j].hi.val[dim])
-        break;
-      overlap[input[j].id * total + input[i].id] = 1;
-    }
-  }
+    // for (int j = i - 1; j >= 0; j--) {
+
+    //   if (input[i].lo.val[dim] > input[j].hi.val[dim])
+    //     break;
+    //   overlap[input[j].id * total + input[i].id] = 1;
+    // }
+  }}
 }
 
 int sort_AABB(AABB *res, int N, int *overlap) {
@@ -883,15 +882,10 @@ int sort_AABB(AABB *res, int N, int *overlap) {
       sort_block *= 2;
     }
     // get_info(output);
-    // int* dev = new int[1024];
 
-    // cudaMemcpy(dev, overlap, sizeof(int)*1024, cudaMemcpyDeviceToHost);
-    // for (int i = 0; i < 1024;i++){
-    //   printf("%d ", dev[i]);
-    // }
-    AABB *dev = new AABB[32];
+    //AABB *dev = new AABB[32];
 
-    cudaMemcpy(dev, res, sizeof(AABB) * 32, cudaMemcpyDeviceToHost);
+    //cudaMemcpy(dev, res, sizeof(AABB) * 32, cudaMemcpyDeviceToHost);
     // for (int i = 0; i < 32;i++){
     //   printf("%f %d, \n", dev[i].lo.val[dim], dev[i].id);
     // }
@@ -901,11 +895,17 @@ int sort_AABB(AABB *res, int N, int *overlap) {
     // get_info(res);
     cudaDeviceSynchronize();
 
+    // int* dev = new int[1024];
+
+    // cudaMemcpy(dev, overlap, sizeof(int)*1024, cudaMemcpyDeviceToHost);
+    // for (int i = 0; i < 1024;i++){
+    //   printf("%d ", dev[i]);
+    // }
     // printf("\n");
 
     // printf("shall print something %d\n", value);
   }
-  int value = find_peaks(32 * 32, overlap);
+  int value = find_peaks(N*N, overlap);
 
   // get_info1(overlap);
   return value;
@@ -933,7 +933,9 @@ double findRadius(AABB *curr, Object *b) {
 
     val = GT(max_rad_sq, val);
   }
+  //printf("the id and center is %d, %f, %f, %f, %f",curr->id, curr->center[0], curr->center[1], curr->center[2], sqrt(val) );
   return sqrt(val) * 1.0001;
+
 }
 
 void findCenter(AABB *curr, Object *b) {
@@ -948,6 +950,7 @@ void findCenter(AABB *curr, Object *b) {
 
     curr->center[dim] /= (3 * b->num_tris);
   }
+  
 }
 
 VCInternal::VCInternal(int mySize, int ss) {
@@ -1085,7 +1088,8 @@ __global__ void cuda_update_trans(int id_max, double *trans, AABB *cuda_boxes) {
   for (int dim = 0; dim < 3; dim++) {
     current->center[dim] = new_center[dim];
   }
-  current->sorting_center = new_center[0] * id + new_center[1] + new_center[2];
+  //printf("the center is %d, %f,%f,%f\n", id, new_center[0], new_center[1], new_center[2]);
+
 }
 
 int VCInternal::UpdateAllTrans(int id[], int total, double *trans) {
@@ -1154,7 +1158,7 @@ __device__ void cuda_Collide_test(double R1[3][3], double T1[3], box *b1,
 }
 
 __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
-                             box *b1, box *b2, int *collision_set) {
+                             box *b_all, int *collision_set, int object_space) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   if (index > N)
     return;
@@ -1162,7 +1166,8 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
   int val = overlaps[index];
   int i = val / size;
   int j = val % size;
-  
+  if (i == j)
+      return;
 
   double R1[3][3], T1[3], R2[3][3], T2[3];
 
@@ -1177,16 +1182,15 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
     T1[x] = trans[i * 16 + x * 4 + 3];
     T2[x] = trans[j * 16 + x * 4 + 3];
   }
+
+  box * b1 = b_all + i * object_space;
+  box * b2 = b_all + j* object_space;
+
   // // printf("The value is %f, %f\n",T1[0], R1[0][0] );
   cuda_Collide_test(R1, T1, b1, R2, T2, b2, collision_set, i, j, size);
 }
 
-__global__ void print_trans(box *mybox) {
-  // for (int i = 0; i < 16 * 20; i += 16) {
-  //   printf("%f \n", trans[i]);
-  // }
-  printf("the eroifje is %d ", mybox->prev_index);
-}
+
 int VCInternal::all_Collide(void) // perform collision detection.
 {
 
@@ -1200,14 +1204,15 @@ int VCInternal::all_Collide(void) // perform collision detection.
   double *my_cuda_trans;
   box *my_cuda_box;
   cudaMalloc(&my_cuda_trans, sizeof(double) * 16 * size);
-  cudaMalloc(&my_cuda_box, sizeof(box) * Object_boxes_inited);
+  cudaMalloc(&my_cuda_box, sizeof(box) * Object_boxes_inited * size);
   // printf("checkpoint %d\n", size);
   for (int i = 0; i < size; i++) {
     cudaMemcpy(my_cuda_trans + i * 16, vc_objects[i]->trans,
                sizeof(double) * 16, cudaMemcpyHostToDevice);
-  }
-  cudaMemcpy(my_cuda_box, vc_objects[0]->cuda_store_box,
+    cudaMemcpy(my_cuda_box, vc_objects[i]->cuda_store_box,
              sizeof(box) * Object_boxes_inited, cudaMemcpyHostToDevice);
+  }
+  
   int *collision_set;
   // printf("first idea %f", vc_objects[0]->cuda_store_box->pT[0]);
   cudaMalloc(&collision_set, sizeof(int) * size * size);
@@ -1225,9 +1230,9 @@ int VCInternal::all_Collide(void) // perform collision detection.
   // cudaMemcpyHostToDevice);
   // //printf("the diff is %f\n", b1[0].pR[2][1]);
   // //b2[1] = vc_objects[6]->cuda_store_box;
-
+  int object_space = Object_boxes_inited;
   cuda_collide<<<32, 32>>>(overlap_count, overlaps, my_cuda_trans, size,
-                         my_cuda_box, my_cuda_box, collision_set);
+                         my_cuda_box,collision_set, object_space);
 
   return 0;
 }
@@ -1241,13 +1246,15 @@ int VCInternal::Collide(void) // perform collision detection.
              cudaMemcpyDeviceToHost);
   // printf("overlapCount %d \n", overlap_count);
   int *collision = new int[32 * 32];
-  for (int k = 0; k < overlap_count; k++) {
+  //for (int k = 0; k < overlap_count; k++) {
+    
 
-    // for(int i = 0; i< 32;i++){
-    //   for(int j = i+1; j< 32;j++){
-    int val = dev[k];
-    int i = val / size;
-    int j = val % size;
+    for(int i = 0; i< 32;i++){
+      for(int j = i+1; j< 32;j++){
+    // int val = dev[k];
+    // int i = val / size;
+    // int j = val % size;
+    //printf("overlap between %d, and %d\n", i,j);
 
     // if (i == j)
     //   continue;
@@ -1267,10 +1274,10 @@ int VCInternal::Collide(void) // perform collision detection.
     // call the RAPID collision detection routine.
     ::Collide(R1, T1, vc_objects[i]->b, R2, T2, vc_objects[j]->b, collision, i,
               j);
-    if (collision[i * 32 + j]) {
-      printf("collision between object %d, and object %d!\n", i, j);
-    }
+    // if (collision[i * 32 + j]) {
+    //   printf("collision between object %d, and object %d!\n", i, j);
+    // }
   }
-
+}
   return 0;
 }
