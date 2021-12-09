@@ -10,7 +10,7 @@
 using namespace std;
 
 const int NO_OF_OBJECTS = 1024;    // number of instances
-const int SIMULATION_STEPS = 20; // number of steps in the simulation.
+const int SIMULATION_STEPS = 10; // number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 
 const int DATA_DUMP = 0;
@@ -19,8 +19,7 @@ const int RENDER_DUMP = 1;
 
 int main(int argc, char *argv[]) {
 
-  double startTime = CycleTimer::currentSeconds();
-  double dumpTime = 0;
+ 
 
   if (argc != 3) {
     cerr << argv[0] << ": USAGE: " << argv[0]
@@ -28,110 +27,147 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  int num_tri;
+  int num_tri = 12;
   VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
 
   int id[NO_OF_OBJECTS];
 
   int i;
 
-  FILE *fp = fopen(argv[1], "r");
+
+  // for (i = 0; i < NO_OF_OBJECTS; i++) // add the objects to the library.
+  // {
+  //   // cout<<"Reading object "<<i<<"\n";
+
+  //   vc.NewObject(&(id[i]));
+  
+  //   // cout<<"Adding triangles\n";
+
+  //   // for (int j = 1; j <= num_tri; j++) {
+  //   //   double v1[3], v2[3], v3[3];
+  //   //   fscanf(fp, "%lf %lf %lf", &(v1[0]), &(v1[1]), &(v1[2]));
+  //   //   fscanf(fp, "%lf %lf %lf", &(v2[0]), &(v2[1]), &(v2[2]));
+  //   //   fscanf(fp, "%lf %lf %lf", &(v3[0]), &(v3[1]), &(v3[2]));
+  //   //   // cout << v3[0] << " " << v3[1] << " "<< v3[2] << endl;
+
+  //   //   vc.AddTri(v1, v2, v3);
+
+  //   //   double p1[3], p2[3], p3[3];
+  //   //   memcpy(&p1, &v1, sizeof(double) * 3);
+  //   //   memcpy(&p2, &v2, sizeof(double) * 3);
+  //   //   memcpy(&p3, &v3, sizeof(double) * 3);
+     
+  //   // }
+  //   double v1[3], v2[3], v3[3];
+      
+  //     v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] = 1.0 + i*10; v2[1] = 0.0; v2[2] = 0.0;
+  //     v3[0] =  1.0 + i*10; v3[1] = 0.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+      
+  //     v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] =  i*10; v2[1] = 0.0; v2[2] = 1.0;
+  //     v3[0] =  1.0 + i*10; v3[1] = 0.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+      
+  //     v1[0] = 0.0 + i*10; v1[1] = 1.0; v1[2] = 0.0;
+  //     v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 0.0;
+  //     v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+      
+  //     v1[0] = 0.0 + i*10; v1[1] = 1.0; v1[2] = 0.0;
+  //     v2[0] =  i*10; v2[1] = 1.0; v2[2] = 1.0;
+  //     v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+      
+  //     v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 0.0;
+  //     v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+
+  //     v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] = 1.0 + i*10; v2[1] = 0.0; v2[2] = 1.0;
+  //     v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+      
+  //     v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] =  i*10; v2[1] = 1.0; v2[2] = 0.0;
+  //     v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+      
+  //     v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] =  i*10; v2[1] = 0.0; v2[2] = 1.0;
+  //     v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+
+  //     v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 1.0;
+  //     v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 1.0;
+  //     v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+
+  //     v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 1.0;
+  //     v2[0] =  i*10; v2[1] = 0.0; v2[2] = 1.0;
+  //     v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
+  //     vc.AddTri(v1, v2, v3);
+
+  //     v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 0.0;
+  //     v3[0] =  i*10; v3[1] = 1.0; v3[2] = 0.0;
+  //     vc.AddTri(v1, v2, v3);
+
+  //     v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
+  //     v2[0] =  i*10; v2[1] = 0.0; v2[2] = 0.0;
+  //     v3[0] =  i*10; v3[1] = 1.0; v3[2] = 0.0;
+  //     vc.AddTri(v1, v2, v3);
+  //   // std::cout<<"closing files\n";
+
+  //   // cout<<"Calling finish_object\n";
+  //   vc.EndObject();
+  //   // vs.EndObject();
+
+  //   //cout << "Inserted object " << i << "\n";
+  // }
+
+
+
+FILE *fp = fopen(argv[1], "r");
   fscanf(fp, "%d", &num_tri);
-  cout << "num_tri = " << num_tri << endl;
   for (i = 0; i < NO_OF_OBJECTS; i++) // add the objects to the library.
   {
     // cout<<"Reading object "<<i<<"\n";
 
     vc.NewObject(&(id[i]));
-  
+
     // cout<<"Adding triangles\n";
 
-    // for (int j = 1; j <= num_tri; j++) {
-    //   double v1[3], v2[3], v3[3];
-    //   fscanf(fp, "%lf %lf %lf", &(v1[0]), &(v1[1]), &(v1[2]));
-    //   fscanf(fp, "%lf %lf %lf", &(v2[0]), &(v2[1]), &(v2[2]));
-    //   fscanf(fp, "%lf %lf %lf", &(v3[0]), &(v3[1]), &(v3[2]));
-    //   // cout << v3[0] << " " << v3[1] << " "<< v3[2] << endl;
+    for (int j = 1; j <= num_tri; j++) {
+      double v1[3], v2[3], v3[3];
+      fscanf(fp, "%lf %lf %lf", &(v1[0]), &(v1[1]), &(v1[2]));
+      fscanf(fp, "%lf %lf %lf", &(v2[0]), &(v2[1]), &(v2[2]));
+      fscanf(fp, "%lf %lf %lf", &(v3[0]), &(v3[1]), &(v3[2]));
 
-    //   vc.AddTri(v1, v2, v3);
-
-    //   double p1[3], p2[3], p3[3];
-    //   memcpy(&p1, &v1, sizeof(double) * 3);
-    //   memcpy(&p2, &v2, sizeof(double) * 3);
-    //   memcpy(&p3, &v3, sizeof(double) * 3);
-     
-    // }
-    double v1[3], v2[3], v3[3];
-      
-      v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] = 1.0 + i*10; v2[1] = 0.0; v2[2] = 0.0;
-      v3[0] =  1.0 + i*10; v3[1] = 0.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-      
-      v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] =  i*10; v2[1] = 0.0; v2[2] = 1.0;
-      v3[0] =  1.0 + i*10; v3[1] = 0.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-      
-      v1[0] = 0.0 + i*10; v1[1] = 1.0; v1[2] = 0.0;
-      v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 0.0;
-      v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-      
-      v1[0] = 0.0 + i*10; v1[1] = 1.0; v1[2] = 0.0;
-      v2[0] =  i*10; v2[1] = 1.0; v2[2] = 1.0;
-      v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-      
-      v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 0.0;
-      v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
       vc.AddTri(v1, v2, v3);
 
-      v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] = 1.0 + i*10; v2[1] = 0.0; v2[2] = 1.0;
-      v3[0] =  1.0 + i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-      
-      v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] =  i*10; v2[1] = 1.0; v2[2] = 0.0;
-      v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-      
-      v1[0] = 0.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] =  i*10; v2[1] = 0.0; v2[2] = 1.0;
-      v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
 
-      v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 1.0;
-      v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 1.0;
-      v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-
-      v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 1.0;
-      v2[0] =  i*10; v2[1] = 0.0; v2[2] = 1.0;
-      v3[0] =  i*10; v3[1] = 1.0; v3[2] = 1.0;
-      vc.AddTri(v1, v2, v3);
-
-      v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] = 1.0 + i*10; v2[1] = 1.0; v2[2] = 0.0;
-      v3[0] =  i*10; v3[1] = 1.0; v3[2] = 0.0;
-      vc.AddTri(v1, v2, v3);
-
-      v1[0] =  1.0 + i*10; v1[1] = 0.0; v1[2] = 0.0;
-      v2[0] =  i*10; v2[1] = 0.0; v2[2] = 0.0;
-      v3[0] =  i*10; v3[1] = 1.0; v3[2] = 0.0;
-      vc.AddTri(v1, v2, v3);
+    }
     // std::cout<<"closing files\n";
 
-    // cout<<"Calling finish_object\n";
     vc.EndObject();
-    // vs.EndObject();
 
-    cout << "Inserted object " << i << "\n";
+    // cout << "Inserted object " << i << "\n";
   }
 
   fclose(fp);
+
+  fp = fopen(argv[2], "r");
+
+  double *collision_pos = new double[NO_OF_OBJECTS * 16];
+
+
+
+
+
+double dumpTime = 0;
 
   // vc.EndAllObjects();
   // FILE *fp = fopen(argv[2], "r");
@@ -164,10 +200,18 @@ int main(int argc, char *argv[]) {
     }
   for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
   {
-    cout << "Simulation step : " << i << "\n";
+        cout << "Simulation step : " << i << "\n";
+    int j;
+    double *all_trans = new double[NO_OF_OBJECTS * 16];
+
+    for (j = 0; j < NO_OF_OBJECTS; j++) {
+      for (int j1 = 0; j1 < 16; j1++) {
+        fscanf(fp, "%lf\n", &(all_trans[j * 16 + j1]));
+      }
+    }
 
     
-
+double startTime = CycleTimer::currentSeconds();
     //     for (j=0; j<NO_OF_OBJECTS; j++)
     // {
     //   for (int j1=0; j1<16; j1++){
@@ -180,19 +224,22 @@ int main(int argc, char *argv[]) {
 
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
 
-    std::vector<int>result = vc.all_Collide();
+    std::vector<int>result = vc.all_Collide(all_trans);
+    dumpTime += CycleTimer::currentSeconds() - startTime;
+    
     for (int k = 0;k<result.size();k++){
       all_trans[result[k]*16+3] = -all_trans[result[k]*16+3];
     }
     
-    double dumpStartTime = CycleTimer::currentSeconds();
+    
     // output trans matrix
-
-    dumpTime += CycleTimer::currentSeconds() - dumpStartTime;
+   // printf("the time spend this iteration is %)
+    
   }
 
-  double endTime = CycleTimer::currentSeconds();
-  std::cout << endTime - startTime - dumpTime << std::endl;
+printf ("%.5f running time for all iterations is \n",  dumpTime );
+  //double endTime = CycleTimer::currentSeconds();
+  //std::cout << endTime - startTime - dumpTime << std::endl;
   // double seconds = difftime(endtime, now);
   // printf ("%.f running time\n", seconds);
   // cout<<" Finish Detected collision between objects\n";
