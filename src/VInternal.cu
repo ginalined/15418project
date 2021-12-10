@@ -19,9 +19,10 @@ static tri *cuda_tris = 0;
 double Object_mR[3][3];
 double Object_mT[3];
 double Object_ms;
+int sorting = 0; // sorting = 0 --> use bubble sort sorting = 1 -->use merge sort
 #include <vector>
+int BLOCK_SIZE = 512;
 
-int BLOCK_SIZE = 128;
 int add_collision(int id1, int id2);
 class box
 {
@@ -658,7 +659,7 @@ __device__ int cuda_collide_recursive(box *b1, box *b2, double R[3][3],
       {
 
         collision_set[i * 1024 + j] = 1;
-        printf("find a collision %d, %d!\n", i, j);
+        //printf("find a collision %d, %d!\n", i, j);
 
         break;
       }
@@ -781,33 +782,107 @@ __global__ void findOverlap(AABB *input, int batchSize, int *overlap, int total,
   }
 }
 
+
+
+__global__ void BubbleSort(AABB *input, int N, int *output,
+                          int dim)
+{
+
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index > N-1){
+    return;
+  }
+
+
+  if (index != N-1 && input[index].lo.val[dim] > input[index+1].lo.val[dim]){
+    output[index] = 1;
+  }else{
+    output[index] = 0;
+  }
+      
+}
+
+__global__ void SwapSort(AABB *input, int N, int dim, int* output)
+{
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index >= N-1){
+    return;
+  }
+  if (output[index] == 1 && output[index+1] != 1 ){
+      AABB temp = input[index];
+      input[index] = input[index +1];
+      input[index +1] = temp;
+
+  }
+
+}
+
+
 int sort_AABB(AABB *res, int N, int *overlap)
 {
   int original_size = N;
   int sort_block = 2;
 
   AABB *output;
+  AABB *test = new AABB[N];
+  int * test1 = new int[N];
   cudaMalloc(&output, sizeof(AABB) * N);
+
 
   for (int dim = 0; dim < 3; dim++)
   {
-    while (sort_block <= N)
+
+    if (sorting){
+          while (sort_block <= N)
     {
       MergeSort<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1>>>(res, sort_block, output,
                                                         N, dim);
       cudaDeviceSynchronize();
       sort_block *= 2;
     }
+    }
+    else{
+
+  int *output_mark;
+  int * check_mark;
+  cudaMalloc(&output_mark, sizeof(int) * N);
+  cudaMalloc(&check_mark, sizeof(int) * N);
+    for (int kk = 0;;kk++){
+    BubbleSort<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1>>>(&res[dim*N], N, output_mark, dim);
+    cudaDeviceSynchronize();
+    cudaMemcpy(check_mark, output_mark, sizeof(int)*N, cudaMemcpyDeviceToDevice);
+
+    exclusive_scan(check_mark, N, 1);
+    cudaDeviceSynchronize();
+
+
+    int result = 0;
+    cudaMemcpy(&result, check_mark + (N - 1), sizeof(int), cudaMemcpyDeviceToHost);
+
+    if (result == 0){
+      break;
+    }
+
+    SwapSort<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1>>>(&res[dim*N], N, dim, output_mark);
+    cudaDeviceSynchronize();
+  }
+
+}
+
+
 
     findOverlap<<<BLOCK_SIZE, (N / BLOCK_SIZE) + 1>>>(res, 1, overlap, N, dim);
 
     cudaDeviceSynchronize();
   }
+    //printf ("%.5f running time for this iteration is \n",  CycleTimer::currentSeconds() - startTime );
   cudaFree(output);
   int value = find_peaks(N * N, overlap, 3);
 
   return value;
 }
+
+
 
 inline double GT(double a, double b) { return (((a) > (b)) ? (a) : (b)); }
 
@@ -861,6 +936,7 @@ VCInternal::VCInternal(int mySize, int ss)
   screen_size = ss;
   vc_objects = new VCObject *[mySize]; // allocate the array.
   size = mySize;
+  cudaMalloc(&cuda_trans, sizeof(double) * mySize * 16);
 
   cudaMalloc(&overlaps, sizeof(int) * mySize * mySize + 2);
 
@@ -868,9 +944,10 @@ VCInternal::VCInternal(int mySize, int ss)
   for (i = 0; i < mySize; i++)
     vc_objects[i] = NULL;
   boxes = new AABB[mySize];
-
-  cudaMalloc(&cuda_boxes, mySize * sizeof(AABB));
+  cudaMalloc(&cuda_boxes, mySize * sizeof(AABB )*3);
   cudaMemcpy(cuda_boxes, boxes, mySize * sizeof(AABB), cudaMemcpyHostToDevice);
+  cudaMemcpy(&cuda_boxes[mySize] , boxes, mySize * sizeof(AABB), cudaMemcpyHostToDevice);
+  //cudaMemcpy(cuda_boxes + 2* mySize , boxes, mySize * sizeof(AABB), cudaMemcpyHostToDevice);
 }
 
 VCInternal::~VCInternal()
@@ -970,6 +1047,7 @@ __global__ void cuda_update_trans(int id_max, double *trans, AABB *cuda_boxes)
     return;
 
   AABB *current = &cuda_boxes[id];
+  
 
   double new_center[3];
   for (int dim = 0; dim < 3; dim++)
@@ -984,32 +1062,29 @@ __global__ void cuda_update_trans(int id_max, double *trans, AABB *cuda_boxes)
   for (int dim = 0; dim < 3; dim++)
   {
     current->center[dim] = new_center[dim];
+    
   }
-}
+cuda_boxes[id + id_max]= cuda_boxes[id];
+cuda_boxes[id + id_max*2] = cuda_boxes[id];
 
+}
 int VCInternal::UpdateAllTrans(int id[], int total, double *trans)
 {
-  for (int j = 0; j < total; j++)
-  {
-    VCObject *current = vc_objects[id[j]];
-    memcpy((void *)current->trans, (void *)(&trans[16 * id[j]]),
-           16 * sizeof(double));
-  }
 
-  double *temp;
+
   int TEMP_SIZE = 16;
 
-  cudaMalloc(&temp, sizeof(double) * total * TEMP_SIZE);
+  
 
   // memcpy(&cputmp, &trans, sizeof(double) * total * 16);
 
-  cudaMemcpy(temp, trans, sizeof(double) * total * TEMP_SIZE, cudaMemcpyHostToDevice);
+  cudaMemcpy(cuda_trans, trans, sizeof(double) * total * TEMP_SIZE, cudaMemcpyHostToDevice);
 
-  cuda_update_trans<<<BLOCK_SIZE, (total / BLOCK_SIZE) + 1>>>(total, temp,
+
+  cuda_update_trans<<<BLOCK_SIZE, (total / BLOCK_SIZE) + 1>>>(total, cuda_trans,
                                                                 cuda_boxes);
 
   cudaDeviceSynchronize();
-  cudaFree(temp);
 
   // EndAllObjects();
 
@@ -1081,9 +1156,13 @@ __global__ void cuda_collide(int N, int *overlaps, double *trans, int size,
   cuda_Collide_test(R1, T1, b1, R2, T2, b2, collision_set, i, j, size);
 }
 
-void VCInternal::all_Collide(bool *collide_buffer) // perform collision detection.
+
+
+std::vector<int> VCInternal::all_Collide(double * trans) // perform collision detection.
 {
-  int collide_pair_size_copy = 0;
+
+
+  std::vector<int> collision_pairs;
   int *dev = new int[overlap_count];
   cudaMemcpy(dev, overlaps, sizeof(int) * overlap_count,
              cudaMemcpyDeviceToHost);
@@ -1092,10 +1171,9 @@ void VCInternal::all_Collide(bool *collide_buffer) // perform collision detectio
   box *my_cuda_box;
   cudaMalloc(&my_cuda_trans, sizeof(double) * 16 * size);
   cudaMalloc(&my_cuda_box, sizeof(box) * Object_boxes_inited * size);
-
-  for (int i = 0; i < size; i++)
-  {
-    cudaMemcpy(my_cuda_trans + i * 16, vc_objects[i]->trans,
+  // printf("checkpoint %d\n", size);
+  for (int i = 0; i < size; i++) {
+    cudaMemcpy(my_cuda_trans + i * 16, trans,
                sizeof(double) * 16, cudaMemcpyHostToDevice);
     cudaMemcpy(my_cuda_box, vc_objects[i]->cuda_store_box,
                sizeof(box) * Object_boxes_inited, cudaMemcpyHostToDevice);
@@ -1115,13 +1193,13 @@ void VCInternal::all_Collide(bool *collide_buffer) // perform collision detectio
   int collision_count = find_peaks(size * size, collision_set, 1);
   int *dev1 = new int[collision_count];
 
-  printf("count is %d\n", collision_count);
-  cudaMemcpy(dev1, collision_set, sizeof(int) * collision_count,
+   cudaMemcpy(dev1, collision_set, sizeof(int) * collision_count,
              cudaMemcpyDeviceToHost);
-  for (int i = 0; i < collision_count; i++)
-  {
-    collide_buffer[dev1[i] / size] = true;
-    collide_buffer[dev1[i] % size] = true;
-    printf("collision between %d and %d\n", dev1[i] / size, dev1[i] % size);
+    for (int i = 0; i < collision_count;i++){
+      collision_pairs.push_back(dev1[i]/size);
+      collision_pairs.push_back(dev1[i]%size);
+      //printf("collision between %d and %d\n", dev1[i]/size, dev1[i]%size);
   }
+
+  return collision_pairs;
 }

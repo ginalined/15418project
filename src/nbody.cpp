@@ -16,7 +16,7 @@
 
 using namespace std;
 
-const int NO_OF_OBJECTS = 1024;  // number of instances
+const int NO_OF_OBJECTS = 32;    // number of instances
 const int SIMULATION_STEPS = 10; // number of steps in the simulation.
 const int SCREEN_SIZE = 100;
 
@@ -30,7 +30,7 @@ void startRendererWithDisplay(VCScene *vs, int option,
 
 int main(int argc, char *argv[]) {
 
-  double computeTime = 0;
+  // double computeTime = 0;
 
   if (argc != 3) {
     cerr << argv[0] << ": USAGE: " << argv[0]
@@ -40,9 +40,9 @@ int main(int argc, char *argv[]) {
 
   int num_tri = 8;
   VCInternal vc(NO_OF_OBJECTS, SCREEN_SIZE);
-#if DUMP
+  #if DUMP
   VCScene vs(NO_OF_OBJECTS);
-#endif
+  #endif
   int id[NO_OF_OBJECTS];
 
   int i;
@@ -86,9 +86,9 @@ int main(int argc, char *argv[]) {
 
   fp = fopen(argv[2], "r");
 
-  double *collision_pos = new double[NO_OF_OBJECTS * 16];
-  bool hasCollide[NO_OF_OBJECTS]; // ever collide before
-  memset(hasCollide, false, NO_OF_OBJECTS * sizeof(bool));
+  // double *collision_pos = new double[NO_OF_OBJECTS * 16];
+  // bool hasCollide[NO_OF_OBJECTS]; // ever collide before
+  // memset(hasCollide, false, NO_OF_OBJECTS * sizeof(bool));
 
   for (i = 1; i <= SIMULATION_STEPS; i++) // perform the simulation.
   {
@@ -102,39 +102,44 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    // if collide in the last frame, reverse the direction of the trans
-    for (j = 0; j < NO_OF_OBJECTS; j++) {
-      if (hasCollide[j]) {
-        all_trans[j * 16 + 3] =
-            2 * collision_pos[j * 16 + 3] - all_trans[j * 16 + 3];
-        all_trans[j * 16 + 7] =
-            2 * collision_pos[j * 16 + 7] - all_trans[j * 16 + 7];
-        all_trans[j * 16 + 11] =
-            2 * collision_pos[j * 16 + 11] - all_trans[j * 16 + 11];
-      }
-    }
+    // // if collide in the last frame, reverse the direction of the trans
+    // for (j = 0; j < NO_OF_OBJECTS; j++) {
+    //   if (hasCollide[j]) {
+    //     all_trans[j * 16 + 3] =
+    //         2 * collision_pos[j * 16 + 3] - all_trans[j * 16 + 3];
+    //     all_trans[j * 16 + 7] =
+    //         2 * collision_pos[j * 16 + 7] - all_trans[j * 16 + 7];
+    //     all_trans[j * 16 + 11] =
+    //         2 * collision_pos[j * 16 + 11] - all_trans[j * 16 + 11];
+    //   }
+    // }
 
     bool collide_pairs_buffer[NO_OF_OBJECTS];
     memset(collide_pairs_buffer, false, NO_OF_OBJECTS * sizeof(bool));
 
-    double startTime = CycleTimer::currentSeconds();
+    // double startTime = CycleTimer::currentSeconds();
     vc.UpdateAllTrans(id, NO_OF_OBJECTS, all_trans);
 
-    vc.all_Collide(collide_pairs_buffer);
-    double endTime = CycleTimer::currentSeconds();
-    computeTime += endTime - startTime;
+    // vc.all_Collide(collide_pairs_buffer);
+    // double endTime = CycleTimer::currentSeconds();
+    // computeTime += endTime - startTime;
 
-    for (j = 0; j < NO_OF_OBJECTS; j++) {
-      if (collide_pairs_buffer[j]) {
-        hasCollide[j] = true;
-
-        for (int k = 0; k < 16; k++) {
-          collision_pos[j * 16 + k] = all_trans[j * 16 + k];
-        }
-      }
+    std::vector<int>result = vc.all_Collide(all_trans);
+    for (int k = 0;k<result.size();k++){
+      all_trans[result[k]*16+3] = -all_trans[result[k]*16+3];
     }
 
-#if DUMP
+    // for (j = 0; j < NO_OF_OBJECTS; j++) {
+    //   if (collide_pairs_buffer[j]) {
+    //     hasCollide[j] = true;
+
+    //     for (int k = 0; k < 16; k++) {
+    //       collision_pos[j * 16 + k] = all_trans[j * 16 + k];
+    //     }
+    //   }
+    // }
+
+    #if DUMP
     // output trans matrix
     for (j = 0; j < NO_OF_OBJECTS; j++) {
       double *per_trans = new double[16];
@@ -144,19 +149,19 @@ int main(int argc, char *argv[]) {
 
       vs.UpdateTrans(id[j], per_trans);
     }
-#endif
+    #endif
 
     delete (all_trans);
-#if DUMP
+    #if DUMP
     startRendererWithDisplay(&vs, DATA_DUMP, "./output/nbody", i, num_tri);
-#endif
+    #endif
   }
 
   fclose(fp);
-  delete[] collision_pos;
+  // delete[] collision_pos;
 
   // double seconds = difftime(endtime, now);
-  printf("%.5f running time\n", computeTime);
+  // printf("%.5f running time\n", computeTime);
   // cout<<" Finish Detected collision between objects\n";
 
   return 0;
