@@ -21,7 +21,7 @@ double Object_mT[3];
 double Object_ms;
 int sorting = 0; // sorting = 0 --> use bubble sort sorting = 1 -->use merge sort
 #include <vector>
-int BLOCK_SIZE = 512;
+int BLOCK_SIZE = 64;
 
 int add_collision(int id1, int id2);
 class box
@@ -1198,7 +1198,7 @@ std::vector<int> VCInternal::all_Collide(double * trans) // perform collision de
     for (int i = 0; i < collision_count;i++){
       collision_pairs.push_back(dev1[i]/size);
       collision_pairs.push_back(dev1[i]%size);
-      //printf("collision between %d and %d\n", dev1[i]/size, dev1[i]%size);
+      printf("collision between %d and %d\n", dev1[i]/size, dev1[i]%size);
   }
 
   return collision_pairs;
