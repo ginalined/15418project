@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from random import random
 
-OBJ_NUM = 1024
+OBJ_NUM = 32
 RADIUS = 0.045
 STRIDE = 0.1
 

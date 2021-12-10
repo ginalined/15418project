@@ -2,7 +2,7 @@
 from random import random
 
 FRAME_NUM = 10
-OBJ_NUM = 1024
+OBJ_NUM = 32
 
 def generate_matrix(offset):
     matrix = []

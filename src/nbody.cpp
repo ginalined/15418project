@@ -1,4 +1,4 @@
-#define DUMP false
+#define DUMP true
 // DUMP is used to dump the input triangles and trans file for simulation
 // purpose
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
         hasCollide[j] = true;
 
         for (int k = 0; k < 16; k++) {
-          collision_pos[j * 16 + k] = all_trans[k * 16 + k];
+          collision_pos[j * 16 + k] = all_trans[j * 16 + k];
         }
       }
     }
